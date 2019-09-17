@@ -14,7 +14,7 @@ with open(path.join(here, "README.md")) as f:
 
 setup(
     name="RabbitMQPubSub",
-    version=rabbitpubsub.rabbit_pubsub.__version__,
+    version=rabbitmqpubsub.rabbit_pubsub.__version__,
     description="Python package for connecting to rabbit publish-subscribe or remote procedure call implementation with pika library",
     long_description=long_description,
     url="",
