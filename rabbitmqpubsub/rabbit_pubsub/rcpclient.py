@@ -56,7 +56,7 @@ class RpcClient(object):
             if self.corr_id == props.correlation_id or self.corr_id == json_body['meta']['correlationId']:
                 self.channel.basic_ack(method.delivery_tag)
                 self.response = body
-        except Exception, e:
+        except Exception as e:
             print(str(e))
     def call(self, data, recipient, correlation_id, routing_key="", exchange_type='direct'):
         """" Main call method - it does the actual RPC request.
@@ -103,6 +103,6 @@ class RpcClient(object):
             while self.response is None:
                 self.connection.process_data_events()
             self.disconnect()
-        except Exception, e:
+        except Exception as e:
             print(str(e))
         return self.response

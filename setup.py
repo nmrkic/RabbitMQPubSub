@@ -5,16 +5,29 @@ A setuptools based setup module.
 from setuptools import setup, find_packages
 from os import path
 import rabbitmqpubsub 
+import re
 
 # Get the long description from the README file
 here = path.abspath(path.dirname(__file__))
 with open(path.join(here, "README.md")) as f:
     long_description = f.read()
 
+def find_version(*file_paths):
+    """
+    Reads out software version from provided path(s).
+    """
+    version_file = open("/".join(file_paths), 'r').read()
+    lookup = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
+                       version_file, re.M)
+
+    if lookup:
+        return lookup.group(1)
+
+    raise RuntimeError("Unable to find version string.")
 
 setup(
     name="RabbitMQPubSub",
-    version=rabbitmqpubsub.__version__,
+    version=find_version("rabbitmqpubsub", "rabbit_pubsub", "__init__.py"),
     description="Python package for connecting to rabbit publish-subscribe or remote procedure call implementation with pika library",
     long_description=long_description,
     url="",

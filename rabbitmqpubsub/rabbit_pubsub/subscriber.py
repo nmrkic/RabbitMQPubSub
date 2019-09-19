@@ -9,11 +9,11 @@ class Subscriber(Thread):
     EXCHANGE_TYPE = ''
     QUEUE = ''
     ROUTING_KEY = ''
-    no_ack = ''
+    no_ack = False 
     DURABLE = True
     EXCLUSIVE = False
 
-    def __init__(self, amqp_url):
+    def __init__(self, amqp_url, exchange=None, exchange_type=None, queue=None):
         """
         Create a new instance of the consumer class, passing in the AMQP
         URL used to connect to RabbitMQ.
@@ -25,11 +25,19 @@ class Subscriber(Thread):
         self._consumer_tag = None
         self._url = amqp_url
         self._observers = []
+        self.EXCHANGE = str(exchange) if exchange else self.EXCHANGE
+        self.EXCHANGE_TYPE = str(exchange_type) if exchange_type else self.EXCHANGE_TYPE
+        self.QUEUE = str(queue) if queue else self.QUEUE
+    
 
     def subscribe(self, observer):
         """
         This method subscribes observer to follow on_message events
         """
+        handle_func = getattr(observer, 'handle', None)
+        if not handle_func or not callable(handle_func):
+            raise Exception("Class has to implement handle(self, body) function")
+        
         self._observers.append(observer)
 
     def connect(self):
@@ -43,8 +51,7 @@ class Subscriber(Thread):
         """
         
         return pika.SelectConnection(pika.URLParameters(self._url),
-                                     self.on_connection_open,
-                                     stop_ioloop_on_close=False)
+                                     self.on_connection_open)
 
     def on_connection_open(self, unused_connection):
         """
@@ -114,7 +121,7 @@ class Subscriber(Thread):
         self._channel.add_on_close_callback(self.on_channel_closed)
         self.setup_exchange(self.EXCHANGE)
 
-    def on_channel_closed(self, channel, reply_code, reply_text):
+    def on_channel_closed(self, channel, reply_code):
         """
         Invoked by pika when RabbitMQ unexpectedly closes the channel.
 
@@ -123,7 +130,7 @@ class Subscriber(Thread):
         different parameters. In this case, we'll close the connection
         to shutdown the object.
         """
-
+        print(reply_code)
         self._connection.close()
 
     def setup_exchange(self, exchange_name):
@@ -133,9 +140,11 @@ class Subscriber(Thread):
         be invoked by pika.
         """
 
-        self._channel.exchange_declare(self.on_exchange_declareok,
-                                       exchange_name,
-                                       self.EXCHANGE_TYPE)
+        self._channel.exchange_declare(
+            exchange=exchange_name,
+            callback=self.on_exchange_declareok,
+            exchange_type=self.EXCHANGE_TYPE
+        )
 
     def on_exchange_declareok(self, unused_frame):
         """
@@ -152,7 +161,12 @@ class Subscriber(Thread):
         be invoked by pika.
         """
 
-        self._channel.queue_declare(self.on_queue_declareok, queue_name, durable=self.DURABLE, exclusive=self.EXCLUSIVE)
+        self._channel.queue_declare(
+            queue=queue_name,
+            callback=self.on_queue_declareok,
+            durable=self.DURABLE,
+            exclusive=self.EXCLUSIVE
+        )
 
     def on_queue_declareok(self, method_frame):
         """
@@ -163,8 +177,12 @@ class Subscriber(Thread):
         be invoked by pika.
         """
 
-        self._channel.queue_bind(self.on_bindok, self.QUEUE,
-                                 self.EXCHANGE, self.ROUTING_KEY)
+        self._channel.queue_bind(
+            queue=self.QUEUE,
+            exchange=self.EXCHANGE,
+            routing_key=self.ROUTING_KEY,
+            callback=self.on_bindok,
+        )
 
     def on_bindok(self, unused_frame):
         """
@@ -189,9 +207,9 @@ class Subscriber(Thread):
         self._channel.add_on_cancel_callback(self.on_consumer_cancelled)
 
         self._consumer_tag = self._channel.basic_consume(
-            self.on_message,
-            self.QUEUE,
-            self.no_ack
+            queue=self.QUEUE,
+            auto_ack=self.no_ack,
+            on_message_callback=self.on_message,
         )
 
     def on_consumer_cancelled(self, method_frame):
@@ -215,8 +233,8 @@ class Subscriber(Thread):
 
         for observer in self._observers:
             observer.handle(body)
-
-        self.acknowledge_message(basic_deliver.delivery_tag)
+        if not self.no_ack:
+            self.acknowledge_message(basic_deliver.delivery_tag)
 
     def acknowledge_message(self, delivery_tag):
         """Acknowledge the message delivery from RabbitMQ by sending a
