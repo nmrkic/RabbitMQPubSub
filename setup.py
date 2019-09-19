@@ -4,7 +4,7 @@ A setuptools based setup module.
 
 from setuptools import setup, find_packages
 from os import path
-import rabbitmqpubsub.rabbit_pubsub 
+import rabbitmqpubsub 
 
 # Get the long description from the README file
 here = path.abspath(path.dirname(__file__))
@@ -14,7 +14,7 @@ with open(path.join(here, "README.md")) as f:
 
 setup(
     name="RabbitMQPubSub",
-    version=rabbitmqpubsub.rabbit_pubsub.__version__,
+    version=rabbitmqpubsub.__version__,
     description="Python package for connecting to rabbit publish-subscribe or remote procedure call implementation with pika library",
     long_description=long_description,
     url="",
