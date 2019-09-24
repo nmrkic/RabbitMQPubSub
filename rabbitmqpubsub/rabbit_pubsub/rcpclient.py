@@ -15,10 +15,13 @@ class RpcClient(object):
     DURABLE = False
 
     RABBIT_URL = ""
-    QUEUE_TIMEOUT = ""
+    QUEUE_TIMEOUT = "30"
 
-    def __init__(self):
+    def __init__(self, amqp_url, exchange, queue):
         """Setup parameters to open a connection to RabbitMQ."""
+        self.RABBIT_URL = amqp_url
+        self.EXCHANGE = exchange
+        self.QUEUE = queue
         parameters = pika.URLParameters(self.RABBIT_URL)
         self.connection = pika.BlockingConnection(parameters)
         self.timeout = self.QUEUE_TIMEOUT
@@ -58,7 +61,7 @@ class RpcClient(object):
                 self.response = body
         except Exception as e:
             print(str(e))
-    def call(self, data, recipient, correlation_id, routing_key="", exchange_type='direct'):
+    def call(self, data, recipient, corr_id=None, routing_key="", exchange_type='direct'):
         """" Main call method - it does the actual RPC request.
 
         In this method we open connection and activate consumer, than add timeout, next we take a unique parametar\
@@ -66,18 +69,13 @@ class RpcClient(object):
         appropriate responce. Next we publish the request message, with two properties: reply_to\
         and correlation_id. Than wait until the proper response arrives and finally we return \
         the response back to user.
-
-        Args:
-            correlation_id(string): unique string for following messages trough services
-            recipient(string): queue receiving message
-            data(string): message in json format
-
         """
         try:
             self.connect()
             self.connection.add_timeout(self.timeout, self.disconnect)
             self.response = None
-            self.corr_id = correlation_id
+            
+            self.corr_id = corr_id if corr_id else str(uuid.uuid4())
             self.channel.exchange_declare(exchange=recipient, type=exchange_type)
             message = {
                 "meta": {
@@ -85,10 +83,8 @@ class RpcClient(object):
                     "source": self.EXCHANGE,
                     "destination": recipient,
                     "correlationId": self.corr_id,
-                    "ruletNo": '0',
                 },
-
-                "command": data,
+                "data": data,
             }
             self.channel.basic_publish(
                 exchange=recipient,

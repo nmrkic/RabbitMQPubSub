@@ -60,7 +60,7 @@ class Publisher(object):
                 "destination": destination,
                 "correlationId": corr_id
             },
-            "command": data,
+            "data": data,
         }
 
         properties = pika.BasicProperties(
