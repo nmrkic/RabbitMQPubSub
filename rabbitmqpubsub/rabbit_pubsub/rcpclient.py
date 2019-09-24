@@ -25,6 +25,7 @@ class RpcClient(object):
         parameters = pika.URLParameters(self.RABBIT_URL)
         self.connection = pika.BlockingConnection(parameters)
         self.timeout = self.QUEUE_TIMEOUT
+        self.resposne = None
 
     def connect(self):
         """Establish channel, declare exchange and 'callback' queue for replies."""
