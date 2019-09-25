@@ -9,7 +9,7 @@ class Publisher(object):
 
     EXCHANGE_TYPE = 'direct'
     PUBLISH_INTERVAL = 5
-    EXCHANGE = "" 
+    EXCHANGE = "publish" 
 
     def __init__(self, amqp_url):
 
@@ -48,7 +48,7 @@ class Publisher(object):
         Args:
             data: data to be sent
         """
-        self.run()
+        self.run(destination)
 
         if not corr_id:
             corr_id = str(uuid.uuid4())
@@ -78,11 +78,11 @@ class Publisher(object):
         self.close_channel()
         self.close_connection()
 
-    def run(self):
+    def run(self, destination):
         """
         Invoke this command to connect, open channel and declare EXCHANGE.
 
         """
         self._connection = self.connect()  # open connection
         self._channel = self._connection.channel()  # open channel
-        self._channel.exchange_declare(self.EXCHANGE, self.EXCHANGE_TYPE)  # declare queue
+        # self._channel.exchange_declare(destination, self.EXCHANGE_TYPE)  # declare queue
