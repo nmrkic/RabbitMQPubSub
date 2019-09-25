@@ -85,4 +85,4 @@ class Publisher(object):
         """
         self._connection = self.connect()  # open connection
         self._channel = self._connection.channel()  # open channel
-        # self._channel.exchange_declare(destination, self.EXCHANGE_TYPE)  # declare queue
+        self._channel.exchange_declare(destination, self.EXCHANGE_TYPE)  # declare queue
