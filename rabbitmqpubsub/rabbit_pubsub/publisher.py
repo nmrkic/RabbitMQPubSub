@@ -71,7 +71,7 @@ class Publisher(object):
         self._channel.basic_publish(
             destination,
             '',
-            json.dumps(message, ensure_ascii=False),
+            json.dumps(message),
             properties
         )
 
