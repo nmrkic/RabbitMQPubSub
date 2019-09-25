@@ -41,13 +41,14 @@ class Publisher(object):
         if self._channel:
             self._channel.close()
 
-    def publish_message(self, data, destination=None, corr_id=None):
+    def publish_message(self, data, destination, source, corr_id=None):
         """
         Invoke this command to publish data to the destination
 
         Args:
             data: data to be sent
         """
+        self.EXCHANGE = source
         self.run(destination)
 
         if not corr_id:
