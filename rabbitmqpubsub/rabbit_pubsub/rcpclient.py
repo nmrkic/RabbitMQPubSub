@@ -2,7 +2,7 @@ import pika
 import datetime as dt
 import json
 import os
-
+import uuid
 
 class RpcClient(object):
     """Remote Procedure Call"""
@@ -15,7 +15,7 @@ class RpcClient(object):
     DURABLE = False
 
     RABBIT_URL = ""
-    QUEUE_TIMEOUT = "30"
+    QUEUE_TIMEOUT = 30
 
     def __init__(self, amqp_url, exchange, queue):
         """Setup parameters to open a connection to RabbitMQ."""
@@ -32,7 +32,7 @@ class RpcClient(object):
 
         self.channel = self.connection.channel()
         self.channel.exchange_declare(exchange=self.EXCHANGE,
-                                      type=self.EXCHANGE_TYPE)
+                                      exchange_type=self.EXCHANGE_TYPE)
         result = self.channel.queue_declare(queue=self.QUEUE, exclusive=self.EXCLUSIVE, durable=self.DURABLE)
 
         self.channel.queue_bind(exchange=self.EXCHANGE,
@@ -41,8 +41,10 @@ class RpcClient(object):
 
         self.callback_queue = result.method.queue
 
-        self.channel.basic_consume(self.on_response,
-                                   queue=self.callback_queue)
+        self.channel.basic_consume(
+            queue=self.callback_queue,
+            on_message_callback=self.on_response,
+        )
 
     def disconnect(self):
         """Close connection after message is received or timeout expired."""
@@ -56,10 +58,11 @@ class RpcClient(object):
 
         """
         try:
+            print(type(body))
             json_body = json.loads(body)
             if self.corr_id == props.correlation_id or self.corr_id == json_body['meta']['correlationId']:
                 self.channel.basic_ack(method.delivery_tag)
-                self.response = body
+                self.response = str(body)
         except Exception as e:
             print(str(e))
     def call(self, data, recipient, corr_id=None, routing_key="", exchange_type='direct'):
@@ -73,11 +76,14 @@ class RpcClient(object):
         """
         try:
             self.connect()
-            self.connection.add_timeout(self.timeout, self.disconnect)
+            # self.connection.add_timeout(
+            #     self.timeout, 
+            #     self.disconnect
+            # )
             self.response = None
             
             self.corr_id = corr_id if corr_id else str(uuid.uuid4())
-            self.channel.exchange_declare(exchange=recipient, type=exchange_type)
+            self.channel.exchange_declare(exchange=recipient, exchange_type=exchange_type)
             message = {
                 "meta": {
                     "timestamp": dt.datetime.now().isoformat(),
@@ -96,8 +102,10 @@ class RpcClient(object):
                     correlation_id=self.corr_id
                 )
             )
-
+            start_time = dt.datetime.now() + dt.timedelta(seconds=self.timeout)
             while self.response is None:
+                if start_time <= dt.datetime.now():
+                    break 
                 self.connection.process_data_events()
             self.disconnect()
         except Exception as e:
