@@ -58,11 +58,10 @@ class RpcClient(object):
 
         """
         try:
-            print(type(body))
             json_body = json.loads(body)
             if self.corr_id == props.correlation_id or self.corr_id == json_body['meta']['correlationId']:
                 self.channel.basic_ack(method.delivery_tag)
-                self.response = str(body)
+                self.response = body
         except Exception as e:
             print(str(e))
     def call(self, data, recipient, corr_id=None, routing_key="", exchange_type='direct'):
