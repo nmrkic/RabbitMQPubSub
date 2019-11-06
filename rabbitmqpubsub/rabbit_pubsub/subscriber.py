@@ -23,7 +23,7 @@ class Subscriber(threading.Thread):
         Create a new instance of the consumer class, passing in the AMQP
         URL used to connect to RabbitMQ.
         """
-        Thread.__init__(self)
+        threading.Thread.__init__(self)
         self._connection = None
         self._channel = None
         self._closing = False
@@ -257,7 +257,7 @@ class Subscriber(threading.Thread):
                 value['thread'].join()
         t_id = str(uuid.uuid4)
         t = Thread(target=self.process_message, args=(body, basic_deliver, t_id))
-        self.threads[t_id] = {"done": False, "thread": t})
+        self.threads[t_id] = {"done": False, "thread": t}
         t.start()
     def acknowledge_message(self, delivery_tag):
         """Acknowledge the message delivery from RabbitMQ by sending a
