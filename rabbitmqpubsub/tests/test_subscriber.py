@@ -9,7 +9,7 @@ class TestHandler():
 class SubscriberTest(TestCase):
     def test_subscriber(self):
         subscriber = rabbit_pubsub.Subscriber(
-            amqp_url="amqp://boring:boring@127.0.0.1:5672/boring",
+            amqp_url="amqp://some:some@127.0.0.1:5672/some",
             exchange="some",
             exchange_type="direct",
             queue="somequeue",

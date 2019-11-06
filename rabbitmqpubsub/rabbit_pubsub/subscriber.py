@@ -1,14 +1,14 @@
-from threading import Thread
+import threading
 import functools
 import logging
 import time
 import pika
 import asyncio
-
+import uuid
 from pika.adapters.asyncio_connection import AsyncioConnection
 
 
-class Subscriber(Thread):
+class Subscriber(threading.Thread):
     
     EXCHANGE = ''
     EXCHANGE_TYPE = ''
@@ -30,6 +30,7 @@ class Subscriber(Thread):
         self._consumer_tag = None
         self._url = amqp_url
         self._observers = []
+        self.threads= {}
         self.EXCHANGE = str(exchange) if exchange else self.EXCHANGE
         self.EXCHANGE_TYPE = str(exchange_type) if exchange_type else self.EXCHANGE_TYPE
         self.QUEUE = str(queue) if queue else self.QUEUE
@@ -232,6 +233,14 @@ class Subscriber(Thread):
         if self._channel:
             self._channel.close()
 
+    def process_message(self, body, basic_deliver, t_id):
+        thread_id = threading.get_ident()
+        for observer in self._observers:
+            observer.handle(body)
+        if not self.no_ack:
+            self.acknowledge_message(basic_deliver.delivery_tag)
+        self.threads[t_id]['done'] = True
+
     def on_message(self, unused_channel, basic_deliver, properties, body):
         """
         Invoked by pika when a message is delivered from RabbitMQ. The
@@ -241,12 +250,15 @@ class Subscriber(Thread):
         instance of BasicProperties with the message properties and the body
         is the message that was sent.
         """
-
-        for observer in self._observers:
-            observer.handle(body)
-        if not self.no_ack:
-            self.acknowledge_message(basic_deliver.delivery_tag)
-
+        # clean up threads:
+        for key, value in dict(self.threads).items():
+            if value['done']:
+                self.threads.pop(key)
+                value['thread'].join()
+        t_id = str(uuid.uuid4)
+        t = Thread(target=self.process_message, args=(body, basic_deliver, t_id))
+        self.threads[t_id] = {"done": False, "thread": t})
+        t.start()
     def acknowledge_message(self, delivery_tag):
         """Acknowledge the message delivery from RabbitMQ by sending a
         Basic.Ack RPC method for the delivery tag.
@@ -281,6 +293,10 @@ class Subscriber(Thread):
 
         self._channel.close()
 
+    def close_threads():
+        for key, value in dict(self.threads).items():
+            value['thread'].join()
+
     def run(self):
         """Run the example consumer by connecting to RabbitMQ and then
         starting the IOLoop to block and allow the SelectConnection to operate.
@@ -303,6 +319,8 @@ class Subscriber(Thread):
         self._closing = True
         self.stop_consuming()
         self._connection.ioloop.stop()
+        self.close_threads()
+    
 
     def close_connection(self):
         """This method closes the connection to RabbitMQ."""
