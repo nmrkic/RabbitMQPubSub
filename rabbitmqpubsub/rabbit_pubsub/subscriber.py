@@ -6,7 +6,7 @@ import pika
 import asyncio
 import uuid
 from pika.adapters.asyncio_connection import AsyncioConnection
-
+from concurrent.futures import ThreadPoolExecutor
 
 class Subscriber(threading.Thread):
     
@@ -34,6 +34,7 @@ class Subscriber(threading.Thread):
         self.EXCHANGE = str(exchange) if exchange else self.EXCHANGE
         self.EXCHANGE_TYPE = str(exchange_type) if exchange_type else self.EXCHANGE_TYPE
         self.QUEUE = str(queue) if queue else self.QUEUE
+
     
 
     def subscribe(self, observer):
@@ -256,7 +257,7 @@ class Subscriber(threading.Thread):
                 self.threads.pop(key)
                 value['thread'].join()
         t_id = str(uuid.uuid4)
-        t = Thread(target=self.process_message, args=(body, basic_deliver, t_id))
+        t = threading.Thread(target=self.process_message, args=(body, basic_deliver, t_id))
         self.threads[t_id] = {"done": False, "thread": t}
         t.start()
     def acknowledge_message(self, delivery_tag):
