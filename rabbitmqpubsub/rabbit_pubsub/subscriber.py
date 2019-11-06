@@ -3,11 +3,13 @@ import functools
 import logging
 import time
 import pika
+import asyncio
 
 from pika.adapters.asyncio_connection import AsyncioConnection
 
 
 class Subscriber(Thread):
+    
     EXCHANGE = ''
     EXCHANGE_TYPE = ''
     QUEUE = ''
@@ -52,9 +54,13 @@ class Subscriber(Thread):
         :rtype: pika.SelectConnection
 
         """
-        
-        return AsyncioConnection(pika.URLParameters(self._url),
-                                     self.on_connection_open)
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        return AsyncioConnection(
+            parameters=pika.URLParameters(self._url),
+            on_open_callback=self.on_connection_open,
+            on_open_error_callback=self.on_open_error_callback,
+
+        )
 
     def on_connection_open(self, unused_connection):
         """
@@ -66,6 +72,8 @@ class Subscriber(Thread):
         self._connection.add_on_close_callback(self.on_connection_closed)
         self.open_channel()
 
+    def on_open_error_callback(self, _unused_connection, err):
+        print(_unused_connection, err)
 
     def on_connection_closed(self, connection, reply_code, reply_text):
         """
@@ -96,7 +104,7 @@ class Subscriber(Thread):
             self._connection = self.connect()
 
             # There is now a new connection, needs a new ioloop to run
-            self._connection.ioloop.start()
+            self._connection.ioloop.run_forever()
 
     def open_channel(self):
         """
@@ -279,7 +287,7 @@ class Subscriber(Thread):
         """
 
         self._connection = self.connect()
-        self._connection.ioloop.start()
+        self._connection.ioloop.run_forever()
 
     def stop(self):
         """Cleanly shutdown the connection to RabbitMQ by stopping the consumer
