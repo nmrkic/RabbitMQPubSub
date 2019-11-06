@@ -224,7 +224,7 @@ class Subscriber(Thread):
         if self._channel:
             self._channel.close()
 
-    def on_message(self, unused_channel, basic_deliver, properties, body):
+    async def on_message(self, unused_channel, basic_deliver, properties, body):
         """
         Invoked by pika when a message is delivered from RabbitMQ. The
         channel is passed for your convenience. The basic_deliver object that
