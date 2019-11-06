@@ -59,7 +59,7 @@ class Subscriber(threading.Thread):
         """
         asyncio.set_event_loop(asyncio.new_event_loop())
         return AsyncioConnection(
-            parameters=pika.URLParameters(self._url, heartbeat=self.heartbeat),
+            parameters=pika.URLParameters("{}?heartbeat={}".format(self._url, self.heartbeat)),
             on_open_callback=self.on_connection_open,
             on_open_error_callback=self.on_open_error_callback,
 
