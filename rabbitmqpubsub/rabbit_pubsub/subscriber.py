@@ -18,7 +18,7 @@ class Subscriber(threading.Thread):
     DURABLE = True
     EXCLUSIVE = False
 
-    def __init__(self, amqp_url, exchange=None, exchange_type=None, queue=None):
+    def __init__(self, amqp_url, exchange=None, exchange_type=None, queue=None, heartbeat=600):
         """
         Create a new instance of the consumer class, passing in the AMQP
         URL used to connect to RabbitMQ.
@@ -34,6 +34,7 @@ class Subscriber(threading.Thread):
         self.EXCHANGE = str(exchange) if exchange else self.EXCHANGE
         self.EXCHANGE_TYPE = str(exchange_type) if exchange_type else self.EXCHANGE_TYPE
         self.QUEUE = str(queue) if queue else self.QUEUE
+        self.heartbeat=heartbeat
 
     
 
@@ -58,7 +59,7 @@ class Subscriber(threading.Thread):
         """
         asyncio.set_event_loop(asyncio.new_event_loop())
         return AsyncioConnection(
-            parameters=pika.URLParameters(self._url),
+            parameters=pika.URLParameters(self._url, heartbeat=self.heartbeat),
             on_open_callback=self.on_connection_open,
             on_open_error_callback=self.on_open_error_callback,
 
