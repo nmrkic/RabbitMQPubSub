@@ -1,7 +1,10 @@
+from threading import Thread
+import functools
+import logging
+import time
 import pika
 
-from threading import Thread
-
+from pika.adapters.asyncio_connection import AsyncioConnection
 
 
 class Subscriber(Thread):
@@ -50,7 +53,7 @@ class Subscriber(Thread):
 
         """
         
-        return pika.SelectConnection(pika.URLParameters(self._url),
+        return AsyncioConnection(pika.URLParameters(self._url),
                                      self.on_connection_open)
 
     def on_connection_open(self, unused_connection):
@@ -232,7 +235,7 @@ class Subscriber(Thread):
         """
 
         for observer in self._observers:
-            observer.handle(body)
+            await observer.handle(body)
         if not self.no_ack:
             self.acknowledge_message(basic_deliver.delivery_tag)
 
