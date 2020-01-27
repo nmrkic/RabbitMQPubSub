@@ -257,7 +257,7 @@ class Subscriber(threading.Thread):
             if value['done']:
                 self.threads.pop(key)
                 value['thread'].join()
-        t_id = str(uuid.uuid4)
+        t_id = str(uuid.uuid4())
         t = threading.Thread(target=self.process_message, args=(body, basic_deliver, t_id))
         self.threads[t_id] = {"done": False, "thread": t}
         t.start()
