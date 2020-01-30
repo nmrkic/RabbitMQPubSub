@@ -2,7 +2,6 @@ import pika
 import threading
 import asyncio
 import uuid
-import sys
 from pika.adapters.asyncio_connection import AsyncioConnection
 import logging
 
@@ -83,7 +82,7 @@ class Subscriber(threading.Thread):
 
     def on_open_error_callback(self, _unused_connection, err):
         logger.error("connection {} error {}".format(_unused_connection, err))
-        sys.exit(0)
+        self.exit()
 
     def on_connection_closed(self, connection, reply_code, reply_text):
         """
@@ -155,7 +154,7 @@ class Subscriber(threading.Thread):
         """
         logger.info("Chanel closed reply code {}".format(reply_code))
         self._connection.close()
-        exit(0)
+        self.exit()
 
     def setup_exchange(self, exchange_name):
         """
@@ -343,8 +342,11 @@ class Subscriber(threading.Thread):
         self._connection.ioloop.stop()
         if self.async_processing:
             self.close_threads()
-        sys.exit(1)
+        self.exit()
 
     def close_connection(self):
         """This method closes the connection to RabbitMQ."""
         self._connection.close()
+
+    def exit(self):
+        self.stop()
