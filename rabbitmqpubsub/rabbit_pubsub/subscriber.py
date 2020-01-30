@@ -112,10 +112,10 @@ class Subscriber(threading.Thread):
             self._connection = self.connect()
 
             # There is now a new connection, needs a new ioloop to run
-            if self.async_processing:
-                self._connection.ioloop.run_forever()
-            else:
-                self._connection.ioloop.start()
+            # if self.async_processing:
+            #     self._connection.ioloop.run_forever()
+            # else:
+            self._connection.ioloop.start()
 
     def open_channel(self):
         """
@@ -321,10 +321,10 @@ class Subscriber(threading.Thread):
         """
 
         self._connection = self.connect()
-        if self.async_processing:
-            self._connection.ioloop.run_forever()
-        else:
-            self._connection.ioloop.start()
+        # if self.async_processing:
+        #     self._connection.ioloop.run_forever()
+        # else:
+        self._connection.ioloop.start()
 
     def stop(self):
         """Cleanly shutdown the connection to RabbitMQ by stopping the consumer
@@ -349,4 +349,4 @@ class Subscriber(threading.Thread):
         self._connection.close()
 
     def exit(self):
-        self.stop()
+        pass
