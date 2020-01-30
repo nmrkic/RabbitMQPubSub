@@ -153,9 +153,9 @@ class Subscriber(threading.Thread):
         different parameters. In this case, we'll close the connection
         to shutdown the object.
         """
-        logger.info("Chanel clossed reply code {}".format(reply_code))
+        logger.info("Chanel closed reply code {}".format(reply_code))
         self._connection.close()
-        sys.exit(0)
+        exit(0)
 
     def setup_exchange(self, exchange_name):
         """
