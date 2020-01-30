@@ -1,6 +1,7 @@
 from unittest import TestCase
 from rabbitmqpubsub import rabbit_pubsub
 
+
 class TestHandler():
     def handle(self):
         print("test")

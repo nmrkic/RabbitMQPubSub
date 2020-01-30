@@ -1,13 +1,14 @@
 import pika
 import datetime as dt
 import json
-import os
+# import os
 import uuid
+
 
 class RpcClient(object):
     """Remote Procedure Call"""
 
-    EXCHANGE = "" 
+    EXCHANGE = ""
     EXCHANGE_TYPE = 'direct'
     QUEUE = ''
     ROUTING_KEY = ''
@@ -64,6 +65,7 @@ class RpcClient(object):
                 self.response = body
         except Exception as e:
             print(str(e))
+
     def call(self, data, recipient, corr_id=None, routing_key="", exchange_type='direct'):
         """" Main call method - it does the actual RPC request.
 
@@ -76,11 +78,10 @@ class RpcClient(object):
         try:
             self.connect()
             # self.connection.add_timeout(
-            #     self.timeout, 
+            #     self.timeout,
             #     self.disconnect
             # )
             self.response = None
-            
             self.corr_id = corr_id if corr_id else str(uuid.uuid4())
             self.channel.exchange_declare(exchange=recipient, exchange_type=exchange_type)
             message = {
@@ -104,7 +105,7 @@ class RpcClient(object):
             start_time = dt.datetime.now() + dt.timedelta(seconds=self.timeout)
             while self.response is None:
                 if start_time <= dt.datetime.now():
-                    break 
+                    break
                 self.connection.process_data_events()
             self.disconnect()
         except Exception as e:

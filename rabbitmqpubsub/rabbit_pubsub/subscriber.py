@@ -1,24 +1,25 @@
-import threading
-import functools
-import logging
-import time
 import pika
+import threading
 import asyncio
 import uuid
+import sys
 from pika.adapters.asyncio_connection import AsyncioConnection
-from concurrent.futures import ThreadPoolExecutor
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class Subscriber(threading.Thread):
-    
+
     EXCHANGE = ''
     EXCHANGE_TYPE = ''
     QUEUE = ''
     ROUTING_KEY = ''
-    no_ack = False 
+    no_ack = False
     DURABLE = True
     EXCLUSIVE = False
 
-    def __init__(self, amqp_url, exchange=None, exchange_type=None, queue=None, heartbeat=600):
+    def __init__(self, amqp_url, exchange=None, exchange_type=None, queue=None, heartbeat=600, async_processing=True):
         """
         Create a new instance of the consumer class, passing in the AMQP
         URL used to connect to RabbitMQ.
@@ -30,13 +31,12 @@ class Subscriber(threading.Thread):
         self._consumer_tag = None
         self._url = amqp_url
         self._observers = []
-        self.threads= {}
+        self.threads = {}
         self.EXCHANGE = str(exchange) if exchange else self.EXCHANGE
         self.EXCHANGE_TYPE = str(exchange_type) if exchange_type else self.EXCHANGE_TYPE
         self.QUEUE = str(queue) if queue else self.QUEUE
-        self.heartbeat=heartbeat
-
-    
+        self.heartbeat = heartbeat
+        self.async_processing = async_processing
 
     def subscribe(self, observer):
         """
@@ -45,7 +45,7 @@ class Subscriber(threading.Thread):
         handle_func = getattr(observer, 'handle', None)
         if not handle_func or not callable(handle_func):
             raise Exception("Class has to implement handle(self, body) function")
-        
+
         self._observers.append(observer)
 
     def connect(self):
@@ -57,13 +57,19 @@ class Subscriber(threading.Thread):
         :rtype: pika.SelectConnection
 
         """
-        asyncio.set_event_loop(asyncio.new_event_loop())
-        return AsyncioConnection(
-            parameters=pika.URLParameters("{}?heartbeat={}".format(self._url, self.heartbeat)),
-            on_open_callback=self.on_connection_open,
-            on_open_error_callback=self.on_open_error_callback,
-
-        )
+        if self.async_processing:
+            asyncio.set_event_loop(asyncio.new_event_loop())
+            return AsyncioConnection(
+                parameters=pika.URLParameters("{}?heartbeat={}".format(self._url, self.heartbeat)),
+                on_open_callback=self.on_connection_open,
+                on_open_error_callback=self.on_open_error_callback,
+            )
+        else:
+            return pika.SelectConnection(
+                parameters=pika.URLParameters("{}?heartbeat={}".format(self._url, self.heartbeat)),
+                on_open_callback=self.on_connection_open,
+                on_open_error_callback=self.on_open_error_callback
+            )
 
     def on_connection_open(self, unused_connection):
         """
@@ -76,7 +82,8 @@ class Subscriber(threading.Thread):
         self.open_channel()
 
     def on_open_error_callback(self, _unused_connection, err):
-        print(_unused_connection, err)
+        logger.error("connection {} error {}".format(_unused_connection, err))
+        sys.exit(0)
 
     def on_connection_closed(self, connection, reply_code, reply_text):
         """
@@ -89,7 +96,6 @@ class Subscriber(threading.Thread):
         if self._closing:
             self._connection.ioloop.stop()
         else:
-            
             self._connection.add_timeout(5, self.reconnect)
 
     def reconnect(self):
@@ -107,7 +113,10 @@ class Subscriber(threading.Thread):
             self._connection = self.connect()
 
             # There is now a new connection, needs a new ioloop to run
-            self._connection.ioloop.run_forever()
+            if self.async_processing:
+                self._connection.ioloop.run_forever()
+            else:
+                self._connection.ioloop.start()
 
     def open_channel(self):
         """
@@ -144,8 +153,9 @@ class Subscriber(threading.Thread):
         different parameters. In this case, we'll close the connection
         to shutdown the object.
         """
-        print(reply_code)
+        logger.info("Chanel clossed reply code {}".format(reply_code))
         self._connection.close()
+        sys.exit(0)
 
     def setup_exchange(self, exchange_name):
         """
@@ -235,8 +245,8 @@ class Subscriber(threading.Thread):
         if self._channel:
             self._channel.close()
 
-    def process_message(self, body, basic_deliver, t_id):
-        thread_id = threading.get_ident()
+    def process_message_async(self, body, basic_deliver, t_id):
+        # thread_id = threading.get_ident()
         for observer in self._observers:
             observer.handle(body)
         if not self.no_ack:
@@ -253,14 +263,21 @@ class Subscriber(threading.Thread):
         is the message that was sent.
         """
         # clean up threads:
-        for key, value in dict(self.threads).items():
-            if value['done']:
-                self.threads.pop(key)
-                value['thread'].join()
-        t_id = str(uuid.uuid4())
-        t = threading.Thread(target=self.process_message, args=(body, basic_deliver, t_id))
-        self.threads[t_id] = {"done": False, "thread": t}
-        t.start()
+        if self.async_processing:
+            for key, value in dict(self.threads).items():
+                if value['done']:
+                    self.threads.pop(key)
+                    value['thread'].join()
+            t_id = str(uuid.uuid4())
+            t = threading.Thread(target=self.process_message_async, args=(body, basic_deliver, t_id))
+            self.threads[t_id] = {"done": False, "thread": t}
+            t.start()
+        else:
+            for observer in self._observers:
+                observer.handle(body)
+            if not self.no_ack:
+                self.acknowledge_message(basic_deliver.delivery_tag)
+
     def acknowledge_message(self, delivery_tag):
         """Acknowledge the message delivery from RabbitMQ by sending a
         Basic.Ack RPC method for the delivery tag.
@@ -295,7 +312,7 @@ class Subscriber(threading.Thread):
 
         self._channel.close()
 
-    def close_threads():
+    def close_threads(self):
         for key, value in dict(self.threads).items():
             value['thread'].join()
 
@@ -305,7 +322,10 @@ class Subscriber(threading.Thread):
         """
 
         self._connection = self.connect()
-        self._connection.ioloop.run_forever()
+        if self.async_processing:
+            self._connection.ioloop.run_forever()
+        else:
+            self._connection.ioloop.start()
 
     def stop(self):
         """Cleanly shutdown the connection to RabbitMQ by stopping the consumer
@@ -321,10 +341,10 @@ class Subscriber(threading.Thread):
         self._closing = True
         self.stop_consuming()
         self._connection.ioloop.stop()
-        self.close_threads()
-    
+        if self.async_processing:
+            self.close_threads()
+        sys.exit(1)
 
     def close_connection(self):
         """This method closes the connection to RabbitMQ."""
-
         self._connection.close()

@@ -4,13 +4,14 @@ A setuptools based setup module.
 
 from setuptools import setup, find_packages
 from os import path
-import rabbitmqpubsub 
+# import rabbitmqpubsub
 import re
 
 # Get the long description from the README file
 here = path.abspath(path.dirname(__file__))
 with open(path.join(here, "README.md")) as f:
     long_description = f.read()
+
 
 def find_version(*file_paths):
     """
@@ -24,6 +25,7 @@ def find_version(*file_paths):
         return lookup.group(1)
 
     raise RuntimeError("Unable to find version string.")
+
 
 setup(
     name="RabbitMQPubSub",

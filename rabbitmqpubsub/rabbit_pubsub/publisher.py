@@ -1,15 +1,16 @@
-import os
+# import os
 import json
 import datetime as dt
 import pika
 import uuid
+
 
 class Publisher(object):
     """Client API Publisher"""
 
     EXCHANGE_TYPE = 'direct'
     PUBLISH_INTERVAL = 5
-    EXCHANGE = "publish" 
+    EXCHANGE = "publish"
 
     def __init__(self, amqp_url):
 
