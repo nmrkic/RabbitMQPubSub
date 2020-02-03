@@ -352,4 +352,7 @@ class Subscriber(threading.Thread):
         self._connection.close()
 
     def exit(self):
+        self._connection.ioloop.run_until_complete(
+            self._connection.ioloop.shutdown_asyncgens()
+        )
         self._connection.ioloop.stop()
