@@ -62,13 +62,15 @@ class Subscriber(threading.Thread):
                 parameters=pika.URLParameters("{}?heartbeat={}".format(self._url, self.heartbeat)),
                 on_open_callback=self.on_connection_open,
                 on_open_error_callback=self.on_open_error_callback,
+                on_close_callback=self.on_connection_closed
             )
         else:
             return pika.SelectConnection(
                 parameters=pika.URLParameters("{}?heartbeat={}".format(self._url, self.heartbeat)),
                 on_open_callback=self.on_connection_open,
-                on_open_error_callback=self.on_open_error_callback
-            )
+                on_open_error_callback=self.on_open_error_callback,
+                on_close_callback=self.on_connection_closed
+           )
 
     def on_connection_open(self, unused_connection):
         """
@@ -82,7 +84,9 @@ class Subscriber(threading.Thread):
 
     def on_open_error_callback(self, _unused_connection, err):
         logger.error("connection {} error {}".format(_unused_connection, err))
-        self.exit()
+        # self.reconnect()
+        if not self._closing:
+            self.stop()
 
     def on_connection_closed(self, connection, reply_code, reply_text):
         """
@@ -90,7 +94,7 @@ class Subscriber(threading.Thread):
         closed unexpectedly. Since it is unexpected, we will reconnect to
         RabbitMQ if it disconnects.
         """
-
+        logger.info("Connection closed")
         self._channel = None
         if self._closing:
             self._connection.ioloop.stop()
@@ -153,8 +157,8 @@ class Subscriber(threading.Thread):
         to shutdown the object.
         """
         logger.info("Chanel closed reply code {}".format(reply_code))
-        self._connection.close()
-        self.exit()
+        if not self._closing:
+            self.stop()
 
     def setup_exchange(self, exchange_name):
         """
@@ -328,6 +332,8 @@ class Subscriber(threading.Thread):
             self._connection.ioloop.run_forever()
         else:
             self._connection.ioloop.start()
+        logger.info("Exiting...")
+        logger.info("{} {} {}".format(self._connection, self._channel, self._connection.ioloop))
 
     def stop(self):
         """Cleanly shutdown the connection to RabbitMQ by stopping the consumer
@@ -339,21 +345,15 @@ class Subscriber(threading.Thread):
         communicate with RabbitMQ. All of the commands issued prior to starting
         the IOLoop will be buffered but not processed.
         """
-
+        logger.info("Stopping ...")
         self._closing = True
         self.stop_consuming()
+        # self._connection.close()
         self._connection.ioloop.stop()
         if self.async_processing:
+            logger.info("Connection ioloop {}".format(self._connection.ioloop))
             self.close_threads()
-        self.exit()
 
     def close_connection(self):
         """This method closes the connection to RabbitMQ."""
         self._connection.close()
-
-    def exit(self):
-        if self.async_processing:
-            self._connection.ioloop.run_until_complete(
-                self._connection.ioloop.shutdown_asyncgens()
-            )
-            self._connection.ioloop.close()
