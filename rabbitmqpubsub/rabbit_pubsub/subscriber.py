@@ -156,7 +156,8 @@ class Subscriber(threading.Thread):
         different parameters. In this case, we'll close the connection
         to shutdown the object.
         """
-        logger.info("Chanel closed reply code {}".format(reply_code))
+        logger.info("Chanel closed reply code {}, chanel {}".format(reply_code, self._channel))
+        self._channel = None
         if not self._closing:
             self.stop()
 
@@ -347,8 +348,9 @@ class Subscriber(threading.Thread):
         """
         logger.info("Stopping ...")
         self._closing = True
+        logger.info("Self chanel {}".format(self._channel))
         self.stop_consuming()
-        # self._connection.close()
+        logger.info("Stopped consuming")
         self._connection.ioloop.stop()
         if self.async_processing:
             logger.info("Connection ioloop {}".format(self._connection.ioloop))
