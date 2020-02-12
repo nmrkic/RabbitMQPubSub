@@ -34,6 +34,7 @@ class Subscriber(threading.Thread):
         self.EXCHANGE = str(exchange) if exchange else self.EXCHANGE
         self.EXCHANGE_TYPE = str(exchange_type) if exchange_type else self.EXCHANGE_TYPE
         self.QUEUE = str(queue) if queue else self.QUEUE
+        self.heartbeat = ""
         if heartbeat:
             self.heartbeat = "?heartbeat={}".format(heartbeat)
         self.async_processing = async_processing
