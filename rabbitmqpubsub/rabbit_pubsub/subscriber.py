@@ -18,7 +18,7 @@ class Subscriber(threading.Thread):
     DURABLE = True
     EXCLUSIVE = False
 
-    def __init__(self, amqp_url, exchange=None, exchange_type=None, queue=None, heartbeat=600, async_processing=True):
+    def __init__(self, amqp_url, exchange=None, exchange_type=None, queue=None, heartbeat=None, async_processing=True):
         """
         Create a new instance of the consumer class, passing in the AMQP
         URL used to connect to RabbitMQ.
@@ -34,7 +34,8 @@ class Subscriber(threading.Thread):
         self.EXCHANGE = str(exchange) if exchange else self.EXCHANGE
         self.EXCHANGE_TYPE = str(exchange_type) if exchange_type else self.EXCHANGE_TYPE
         self.QUEUE = str(queue) if queue else self.QUEUE
-        self.heartbeat = heartbeat
+        if heartbeat:
+            self.heartbeat = "?heartbeat={}".format(heartbeat)
         self.async_processing = async_processing
 
     def subscribe(self, observer):
@@ -59,18 +60,18 @@ class Subscriber(threading.Thread):
         if self.async_processing:
             asyncio.set_event_loop(asyncio.new_event_loop())
             return AsyncioConnection(
-                parameters=pika.URLParameters("{}?heartbeat={}".format(self._url, self.heartbeat)),
+                parameters=pika.URLParameters("{}{}".format(self._url, self.heartbeat)),
                 on_open_callback=self.on_connection_open,
                 on_open_error_callback=self.on_open_error_callback,
                 on_close_callback=self.on_connection_closed
             )
         else:
             return pika.SelectConnection(
-                parameters=pika.URLParameters("{}?heartbeat={}".format(self._url, self.heartbeat)),
+                parameters=pika.URLParameters("{}{}".format(self._url, self.heartbeat)),
                 on_open_callback=self.on_connection_open,
                 on_open_error_callback=self.on_open_error_callback,
                 on_close_callback=self.on_connection_closed
-           )
+            )
 
     def on_connection_open(self, unused_connection):
         """
@@ -88,7 +89,7 @@ class Subscriber(threading.Thread):
         if not self._closing:
             self.stop()
 
-    def on_connection_closed(self, connection, reply_code, reply_text):
+    def on_connection_closed(self, connection, reply_code, reply_text=None):
         """
         This method is invoked by pika when the connection to RabbitMQ is
         closed unexpectedly. Since it is unexpected, we will reconnect to
