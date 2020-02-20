@@ -268,6 +268,9 @@ class Subscriber(threading.Thread):
         instance of BasicProperties with the message properties and the body
         is the message that was sent.
         """
+        # acknowlage that message is received before long processing
+        if not self.no_ack:
+            self.acknowledge_message(basic_deliver.delivery_tag)
         # clean up threads:
         if self.async_processing:
             for key, value in dict(self.threads).items():
@@ -281,8 +284,6 @@ class Subscriber(threading.Thread):
         else:
             for observer in self._observers:
                 observer.handle(body)
-            if not self.no_ack:
-                self.acknowledge_message(basic_deliver.delivery_tag)
 
     def acknowledge_message(self, delivery_tag):
         """Acknowledge the message delivery from RabbitMQ by sending a
