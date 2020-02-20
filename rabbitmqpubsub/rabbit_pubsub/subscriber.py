@@ -255,8 +255,8 @@ class Subscriber(threading.Thread):
         # thread_id = threading.get_ident()
         for observer in self._observers:
             observer.handle(body)
-        if not self.no_ack:
-            self.acknowledge_message(basic_deliver.delivery_tag)
+        # if not self.no_ack:
+        #     self.acknowledge_message(basic_deliver.delivery_tag)
         self.threads[t_id]['done'] = True
 
     def on_message(self, unused_channel, basic_deliver, properties, body):
