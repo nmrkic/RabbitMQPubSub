@@ -340,8 +340,8 @@ class Subscriber(threading.Thread):
                     callback=self.on_cancelok
                 )
         else:
-            if self._channel:
-                self._channel.stop_consuming()
+            # if self._channel:
+            #     self._channel.stop_consuming()
             self._connection.close()
 
     def on_cancelok(self, unused_frame):
@@ -375,7 +375,10 @@ class Subscriber(threading.Thread):
         self._connection = self.connect()
         if self.async_processing:
             self._connection.ioloop.run_forever()
+        else:
+            self._channel.start_consuming()
         logger.info("Exiting...")
+
         # logger.info("{} {} {}".format(self._connection, self._channel, self._connection.ioloop))
 
     def stop(self):
