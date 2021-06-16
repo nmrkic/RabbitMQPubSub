@@ -67,12 +67,14 @@ class Subscriber(threading.Thread):
                 # on_close_callback=self.on_connection_closed
             )
         else:
-            return pika.BlockingConnection(
+            self._connection =  pika.BlockingConnection(
                 parameters=pika.URLParameters("{}{}".format(self._url, self.heartbeat)),
-                on_open_callback=self.on_connection_open,
-                on_open_error_callback=self.on_open_error_callback,
+                # on_open_callback=self.on_connection_open,
+                # on_open_error_callback=self.on_open_error_callback,
                 # on_close_callback=self.on_connection_closed
             )
+            self.on_connection_open(self._connection)
+            return self._connection
 
     def on_connection_open(self, unused_connection):
         """
@@ -81,7 +83,8 @@ class Subscriber(threading.Thread):
         case we need it, but in this case, we'll just mark it unused.
         """
         # add on conection close callback
-        self._connection.add_on_close_callback(self.on_connection_closed)
+        if self.async_processing:
+            self._connection.add_on_close_callback(self.on_connection_closed)
         self.open_channel()
 
     def on_open_error_callback(self, _unused_connection, err):
@@ -130,7 +133,10 @@ class Subscriber(threading.Thread):
         on_channel_open callback will be invoked by pika.
 
         """
-        self._connection.channel(on_open_callback=self.on_channel_open)
+        if self.async_processing:
+            self._connection.channel(on_open_callback=self.on_channel_open)
+        else:
+            self._channel = self._connection.channel()
 
     def on_channel_open(self, channel):
         """
@@ -146,7 +152,8 @@ class Subscriber(threading.Thread):
         """
         self._channel = channel
         # add on channel close callback
-        self._channel.add_on_close_callback(self.on_channel_closed)
+        if self.async_processing:
+            self._channel.add_on_close_callback(self.on_channel_closed)
         self.setup_exchange(self.EXCHANGE)
 
     def on_channel_closed(self, channel, reply_code):
@@ -271,7 +278,6 @@ class Subscriber(threading.Thread):
         # acknowlage that message is received before long processing
         if not self.no_ack:
             self.acknowledge_message(basic_deliver.delivery_tag)
-        self._connection.process_data_events()
         # clean up threads:
         if self.async_processing:
             for key, value in dict(self.threads).items():
@@ -283,6 +289,7 @@ class Subscriber(threading.Thread):
             self.threads[t_id] = {"done": False, "thread": t}
             t.start()
         else:
+            self._connection.process_data_events()
             t_id = str(uuid.uuid4())
             t = threading.Thread(target=self.process_message_async, args=(body, basic_deliver, t_id))
             self.threads[t_id] = {"done": False, "thread": t}
@@ -303,11 +310,17 @@ class Subscriber(threading.Thread):
         Basic.Cancel RPC command.
         """
 
-        if self._channel:
-            self._channel.basic_cancel(
-                consumer_tag=self._consumer_tag,
-                callback=self.on_cancelok
-            )
+        if self.async_processing:
+            if self._channel:
+                self._channel.basic_cancel(
+                    consumer_tag=self._consumer_tag,
+                    callback=self.on_cancelok
+                )
+        else:
+            if self._channel:
+                self._channel.stop_consuming()
+            self._connection.close()
+
 
     def on_cancelok(self, unused_frame):
         """This method is invoked by pika when RabbitMQ acknowledges the
@@ -341,9 +354,9 @@ class Subscriber(threading.Thread):
         if self.async_processing:
             self._connection.ioloop.run_forever()
         else:
-            self._connection.ioloop.start()
+            self._channel.start_consuming()
         logger.info("Exiting...")
-        logger.info("{} {} {}".format(self._connection, self._channel, self._connection.ioloop))
+        # logger.info("{} {} {}".format(self._connection, self._channel, self._connection.ioloop))
 
     def stop(self):
         """Cleanly shutdown the connection to RabbitMQ by stopping the consumer
