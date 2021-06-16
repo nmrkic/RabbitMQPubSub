@@ -271,7 +271,6 @@ class Subscriber(threading.Thread):
         # acknowlage that message is received before long processing
         if not self.no_ack:
             self.acknowledge_message(basic_deliver.delivery_tag)
-        self._connection._flush_outbound()
         # clean up threads:
         if self.async_processing:
             for key, value in dict(self.threads).items():
@@ -283,8 +282,13 @@ class Subscriber(threading.Thread):
             self.threads[t_id] = {"done": False, "thread": t}
             t.start()
         else:
-            for observer in self._observers:
-                observer.handle(body)
+            t_id = str(uuid.uuid4())
+            t = threading.Thread(target=self.process_message_async, args=(body, basic_deliver, t_id))
+            self.threads[t_id] = {"done": False, "thread": t}
+            t.start()
+            t.join()
+            self.threads[t_id]['done'] = True
+            self.threads.pop(t_id)
 
     def acknowledge_message(self, delivery_tag):
         """Acknowledge the message delivery from RabbitMQ by sending a
