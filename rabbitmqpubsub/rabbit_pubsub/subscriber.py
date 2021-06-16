@@ -64,14 +64,14 @@ class Subscriber(threading.Thread):
                 parameters=pika.URLParameters("{}{}".format(self._url, self.heartbeat)),
                 on_open_callback=self.on_connection_open,
                 on_open_error_callback=self.on_open_error_callback,
-                on_close_callback=self.on_connection_closed
+                # on_close_callback=self.on_connection_closed
             )
         else:
-            return pika.SelectConnection(
+            return pika.BlockingConnection(
                 parameters=pika.URLParameters("{}{}".format(self._url, self.heartbeat)),
                 on_open_callback=self.on_connection_open,
                 on_open_error_callback=self.on_open_error_callback,
-                on_close_callback=self.on_connection_closed
+                # on_close_callback=self.on_connection_closed
             )
 
     def on_connection_open(self, unused_connection):
