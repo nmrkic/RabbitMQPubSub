@@ -271,7 +271,7 @@ class Subscriber(threading.Thread):
         # acknowlage that message is received before long processing
         if not self.no_ack:
             self.acknowledge_message(basic_deliver.delivery_tag)
-        self._connection.process_data_events()
+        self.connection._flush_outbound()
         # clean up threads:
         if self.async_processing:
             for key, value in dict(self.threads).items():
