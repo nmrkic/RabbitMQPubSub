@@ -1,6 +1,7 @@
 from unittest import TestCase
 from rabbitmqpubsub import rabbit_pubsub
 import json
+import time
 
 
 class SubsHandler():
@@ -34,16 +35,17 @@ class SubscriberTest(TestCase):
         subscriber.subscribe(self.test_handler)
         subscriber.start()
 
-        for i in range(1000):
+        for i in range(10):
             rabbit_pubsub.Publisher(amqp_url).publish_message(
                 data={"request_number": i, "test": "b"},
                 destination="some",
                 source="someother"
             )
+        time.sleep(2)
         subscriber.stop_consuming()
         subscriber.join()
         # print(subscriber._observers[0])
-        self.assertEqual(len(self.test_handler.results["b"]), 1000)
+        self.assertEqual(len(self.test_handler.results["b"]), 10)
         self.test_handler.results = []
 
     def test_subscriber_block(self):
@@ -59,14 +61,15 @@ class SubscriberTest(TestCase):
         subscriber.subscribe(self.test_handler)
         subscriber.start()
 
-        for i in range(2000):
+        for i in range(20):
             rabbit_pubsub.Publisher(amqp_url).publish_message(
                 data={"request_number": i, "test": "a"},
                 destination="some",
                 source="someother",
             )
+        time.sleep(2)
         subscriber.stop_consuming()
         subscriber.join()
         # print(subscriber._observers[0])
-        self.assertEqual(len(self.test_handler.results["a"]), 2000)
+        self.assertEqual(len(self.test_handler.results["a"]), 20)
         self.test_handler.results = []

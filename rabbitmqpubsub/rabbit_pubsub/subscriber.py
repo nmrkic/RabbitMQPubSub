@@ -67,7 +67,7 @@ class Subscriber(threading.Thread):
                 # on_close_callback=self.on_connection_closed
             )
         else:
-            self._connection =  pika.BlockingConnection(
+            self._connection = pika.BlockingConnection(
                 parameters=pika.URLParameters("{}{}".format(self._url, self.heartbeat)),
                 # on_open_callback=self.on_connection_open,
                 # on_open_error_callback=self.on_open_error_callback,
@@ -137,6 +137,7 @@ class Subscriber(threading.Thread):
             self._connection.channel(on_open_callback=self.on_channel_open)
         else:
             self._channel = self._connection.channel()
+            self.on_channel_open(self._channel)
 
     def on_channel_open(self, channel):
         """
@@ -177,11 +178,18 @@ class Subscriber(threading.Thread):
         be invoked by pika.
         """
 
-        self._channel.exchange_declare(
-            exchange=exchange_name,
-            callback=self.on_exchange_declareok,
-            exchange_type=self.EXCHANGE_TYPE
-        )
+        if self.async_processing:
+            self._channel.exchange_declare(
+                exchange=exchange_name,
+                callback=self.on_exchange_declareok,
+                exchange_type=self.EXCHANGE_TYPE
+            )
+        else:
+            self._channel.exchange_declare(
+                exchange=exchange_name,
+                exchange_type=self.EXCHANGE_TYPE
+            )
+            self.on_exchange_declareok("")
 
     def on_exchange_declareok(self, unused_frame):
         """
@@ -197,13 +205,20 @@ class Subscriber(threading.Thread):
         command. When it is complete, the on_queue_declareok method will
         be invoked by pika.
         """
-
-        self._channel.queue_declare(
-            queue=queue_name,
-            callback=self.on_queue_declareok,
-            durable=self.DURABLE,
-            exclusive=self.EXCLUSIVE
-        )
+        if self.async_processing:
+            self._channel.queue_declare(
+                queue=queue_name,
+                callback=self.on_queue_declareok,
+                durable=self.DURABLE,
+                exclusive=self.EXCLUSIVE
+            )
+        else:
+            self._channel.queue_declare(
+                queue=queue_name,
+                durable=self.DURABLE,
+                exclusive=self.EXCLUSIVE
+            )
+            self.on_queue_declareok("")
 
     def on_queue_declareok(self, method_frame):
         """
@@ -214,12 +229,20 @@ class Subscriber(threading.Thread):
         be invoked by pika.
         """
 
-        self._channel.queue_bind(
-            queue=self.QUEUE,
-            exchange=self.EXCHANGE,
-            routing_key=self.ROUTING_KEY,
-            callback=self.on_bindok,
-        )
+        if self.async_processing:
+            self._channel.queue_bind(
+                queue=self.QUEUE,
+                exchange=self.EXCHANGE,
+                routing_key=self.ROUTING_KEY,
+                callback=self.on_bindok,
+            )
+        else:
+            self._channel.queue_bind(
+                queue=self.QUEUE,
+                exchange=self.EXCHANGE,
+                routing_key=self.ROUTING_KEY,
+            )
+            self.on_bindok("")
 
     def on_bindok(self, unused_frame):
         """
@@ -321,7 +344,6 @@ class Subscriber(threading.Thread):
                 self._channel.stop_consuming()
             self._connection.close()
 
-
     def on_cancelok(self, unused_frame):
         """This method is invoked by pika when RabbitMQ acknowledges the
         cancellation of a consumer. At this point we will close the channel.
@@ -353,8 +375,6 @@ class Subscriber(threading.Thread):
         self._connection = self.connect()
         if self.async_processing:
             self._connection.ioloop.run_forever()
-        else:
-            self._channel.start_consuming()
         logger.info("Exiting...")
         # logger.info("{} {} {}".format(self._connection, self._channel, self._connection.ioloop))
 
