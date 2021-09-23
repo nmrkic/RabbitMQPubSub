@@ -12,6 +12,7 @@ class Subscriber(threading.Thread):
 
     EXCHANGE = ''
     EXCHANGE_TYPE = ''
+    EXCHANGE_DURABLE = False
     QUEUE = ''
     ROUTING_KEY = ''
     no_ack = False
@@ -182,12 +183,14 @@ class Subscriber(threading.Thread):
             self._channel.exchange_declare(
                 exchange=exchange_name,
                 callback=self.on_exchange_declareok,
-                exchange_type=self.EXCHANGE_TYPE
+                exchange_type=self.EXCHANGE_TYPE,
+                durable=self.EXCHANGE_DURABLE
             )
         else:
             self._channel.exchange_declare(
                 exchange=exchange_name,
-                exchange_type=self.EXCHANGE_TYPE
+                exchange_type=self.EXCHANGE_TYPE,
+                durable=self.EXCHANGE_DURABLE
             )
             self.on_exchange_declareok("")
 

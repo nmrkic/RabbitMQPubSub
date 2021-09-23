@@ -10,6 +10,7 @@ class RpcClient(object):
 
     EXCHANGE = ""
     EXCHANGE_TYPE = 'direct'
+    EXCHANGE_DURABLE = False
     QUEUE = ''
     ROUTING_KEY = ''
     EXCLUSIVE = True
@@ -32,8 +33,11 @@ class RpcClient(object):
         """Establish channel, declare exchange and 'callback' queue for replies."""
 
         self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange=self.EXCHANGE,
-                                      exchange_type=self.EXCHANGE_TYPE)
+        self.channel.exchange_declare(
+            exchange=self.EXCHANGE,
+            exchange_type=self.EXCHANGE_TYPE,
+            durable=self.EXCHANGE_DURABLE
+        )
         result = self.channel.queue_declare(queue=self.QUEUE, exclusive=self.EXCLUSIVE, durable=self.DURABLE)
 
         self.channel.queue_bind(exchange=self.EXCHANGE,
@@ -83,7 +87,11 @@ class RpcClient(object):
             # )
             self.response = None
             self.corr_id = corr_id if corr_id else str(uuid.uuid4())
-            self.channel.exchange_declare(exchange=recipient, exchange_type=exchange_type)
+            self.channel.exchange_declare(
+                exchange=recipient,
+                exchange_type=exchange_type,
+                durable=self.EXCHANGE_DURABLE
+            )
             message = {
                 "meta": {
                     "timestamp": dt.datetime.now().isoformat(),

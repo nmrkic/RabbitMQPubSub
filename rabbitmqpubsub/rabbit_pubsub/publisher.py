@@ -9,6 +9,7 @@ class Publisher(object):
     """Client API Publisher"""
 
     EXCHANGE_TYPE = 'direct'
+    EXCHANGE_DURABLE = False
     PUBLISH_INTERVAL = 5
     EXCHANGE = "publish"
 
@@ -87,4 +88,8 @@ class Publisher(object):
         """
         self._connection = self.connect()  # open connection
         self._channel = self._connection.channel()  # open channel
-        self._channel.exchange_declare(destination, self.EXCHANGE_TYPE)  # declare queue
+        self._channel.exchange_declare(
+            exchange=destination,
+            exchange_type=self.EXCHANGE_TYPE,
+            durable=self.EXCHANGE_DURABLE
+        )  # declare queue
