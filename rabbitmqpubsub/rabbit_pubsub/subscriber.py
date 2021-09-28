@@ -286,6 +286,13 @@ class Subscriber(threading.Thread):
 
     def process_message_async(self, body, basic_deliver, t_id):
         # thread_id = threading.get_ident()
+        body["message_meta"] = {
+            "routing_key": basic_deliver.routing_key,
+            "redelivered": basic_deliver.redelivered,
+            "exchange": basic_deliver.exchange,
+            "delivery_tag": basic_deliver.delivery_tag,
+            "counsumer_tag": basic_deliver.consumer_tag
+        }
         for observer in self._observers:
             observer.handle(body)
         # if not self.no_ack:
