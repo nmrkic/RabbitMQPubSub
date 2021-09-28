@@ -4,6 +4,7 @@ import asyncio
 import uuid
 from pika.adapters.asyncio_connection import AsyncioConnection
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -286,13 +287,18 @@ class Subscriber(threading.Thread):
 
     def process_message_async(self, body, basic_deliver, t_id):
         # thread_id = threading.get_ident()
-        body["message_meta"] = {
-            "routing_key": basic_deliver.routing_key,
-            "redelivered": basic_deliver.redelivered,
-            "exchange": basic_deliver.exchange,
-            "delivery_tag": basic_deliver.delivery_tag,
-            "counsumer_tag": basic_deliver.consumer_tag
-        }
+        try:
+            json_body = json.loads(body)
+            json_body["message_meta"] = {
+                "routing_key": basic_deliver.routing_key,
+                "redelivered": basic_deliver.redelivered,
+                "exchange": basic_deliver.exchange,
+                "delivery_tag": basic_deliver.delivery_tag,
+                "counsumer_tag": basic_deliver.consumer_tag
+            }
+            body = json.dumps(json_body)
+        except Exception as e:
+            logger.warn("Object is not json, proceding without message meta. Error {}".format(str(e)))
         for observer in self._observers:
             observer.handle(body)
         # if not self.no_ack:
