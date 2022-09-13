@@ -23,53 +23,27 @@ class SubscriberTest(TestCase):
     def tearDown(self):
         self.test_handler.results = []
 
-    # def test_subscriber_async(self):
-
-    #     amqp_url = "amqp://guest:guest@127.0.0.1:5672/guest"
-    #     subscriber = rabbit_pubsub.Subscriber(
-    #         amqp_url=amqp_url,
-    #         exchange="someother",
-    #         exchange_type="direct",
-    #         queue="somequeue",
-    #     )
-    #     subscriber.subscribe(self.test_handler)
-    #     subscriber.start()
-
-    #     for i in range(10):
-    #         rabbit_pubsub.Publisher(amqp_url).publish_message(
-    #             data={"request_number": i, "test": "b"},
-    #             destination="some",
-    #             source="someother"
-    #         )
-    #     time.sleep(2)
-    #     subscriber.stop_consuming()
-    #     subscriber.join()
-    #     # print(subscriber._observers[0])
-    #     self.assertEqual(len(self.test_handler.results["b"]), 10)
-    #     self.test_handler.results = []
-
-    def test_subscriber_block(self):
+    def test_subscriber_async(self):
 
         amqp_url = "amqp://guest:guest@127.0.0.1:5672/guest"
         subscriber = rabbit_pubsub.Subscriber(
             amqp_url=amqp_url,
-            exchange="someother",
+            exchange="some",
             exchange_type="direct",
-            queue="somequeueother",
-            async_processing=False
+            queue="somequeue",
+            async_processing=True
         )
         subscriber.subscribe(self.test_handler)
         subscriber.start()
 
-        for i in range(20):
+        for i in range(10):
             rabbit_pubsub.Publisher(amqp_url).publish_message(
-                data={"request_number": i, "test": "a"},
-                destination="someother",
-                source="someother",
+                data={"request_number": i, "test": "b"},
+                destination="some",
+                source="someother"
             )
-        time.sleep(5)
+        time.sleep(2)
         subscriber.stop_consuming()
         subscriber.join()
-        # print(subscriber._observers[0])
-        self.assertEqual(len(self.test_handler.results["a"]), 25)
+        self.assertEqual(len(self.test_handler.results["b"]), 10)
         self.test_handler.results = []

@@ -40,8 +40,7 @@ setup(
     author_email="mrkic.nebojsa@gmail.com",
     license="Apache 2.0",
     install_requires=[
-        "overrides>=1.8",
-        "pika==1.1.0"
+        "pika==1.3.0"
     ],
     dependency_links=[
     ],
