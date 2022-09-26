@@ -1,6 +1,5 @@
 from unittest import TestCase
 from rabbitmqpubsub import rabbit_pubsub
-import json
 import time
 import datetime as dt
 import logging
