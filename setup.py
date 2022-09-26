@@ -40,7 +40,8 @@ setup(
     author_email="mrkic.nebojsa@gmail.com",
     license="Apache 2.0",
     install_requires=[
-        "pika==1.3.0"
+        "pika==1.3.0",
+        "dateutils==0.6.12"
     ],
     dependency_links=[
     ],
@@ -50,12 +51,11 @@ setup(
         "mock",
     ],
     classifiers=[
-        'Development Status :: 1 - Planning',
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.10',
     ],
 )
