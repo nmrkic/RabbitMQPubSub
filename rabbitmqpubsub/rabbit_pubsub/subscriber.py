@@ -11,17 +11,24 @@ logger = logging.getLogger(__name__)
 
 
 class Subscriber(threading.Thread):
-
-    EXCHANGE = ''
-    EXCHANGE_TYPE = ''
+    EXCHANGE = ""
+    EXCHANGE_TYPE = ""
     EXCHANGE_DURABLE = False
-    QUEUE = ''
-    ROUTING_KEY = ''
+    QUEUE = ""
+    ROUTING_KEY = ""
     no_ack = False
     DURABLE = True
     EXCLUSIVE = False
 
-    def __init__(self, amqp_url, exchange=None, exchange_type=None, queue=None, heartbeat=None, async_processing=True):
+    def __init__(
+        self,
+        amqp_url,
+        exchange=None,
+        exchange_type=None,
+        queue=None,
+        heartbeat=None,
+        async_processing=True,
+    ):
         """
         Create a new instance of the consumer class, passing in the AMQP
         URL used to connect to RabbitMQ.
@@ -46,7 +53,7 @@ class Subscriber(threading.Thread):
         """
         This method subscribes observer to follow on_message events
         """
-        handle_func = getattr(observer, 'handle', None)
+        handle_func = getattr(observer, "handle", None)
         if not handle_func or not callable(handle_func):
             raise Exception("Class has to implement handle(self, body) function")
 
@@ -119,7 +126,6 @@ class Subscriber(threading.Thread):
         self._connection.ioloop.stop()
 
         if not self._closing:
-
             # Create a new connection
             self._connection = self.connect()
 
@@ -169,7 +175,9 @@ class Subscriber(threading.Thread):
         different parameters. In this case, we'll close the connection
         to shutdown the object.
         """
-        logger.info("Chanel closed reply code {}, chanel {}".format(reply_code, self._channel))
+        logger.info(
+            "Chanel closed reply code {}, chanel {}".format(reply_code, self._channel)
+        )
         self._channel = None
         if not self._closing:
             self.stop()
@@ -186,13 +194,13 @@ class Subscriber(threading.Thread):
                 exchange=exchange_name,
                 callback=self.on_exchange_declareok,
                 exchange_type=self.EXCHANGE_TYPE,
-                durable=self.EXCHANGE_DURABLE
+                durable=self.EXCHANGE_DURABLE,
             )
         else:
             self._channel.exchange_declare(
                 exchange=exchange_name,
                 exchange_type=self.EXCHANGE_TYPE,
-                durable=self.EXCHANGE_DURABLE
+                durable=self.EXCHANGE_DURABLE,
             )
             self.on_exchange_declareok("")
 
@@ -215,13 +223,11 @@ class Subscriber(threading.Thread):
                 queue=queue_name,
                 callback=self.on_queue_declareok,
                 durable=self.DURABLE,
-                exclusive=self.EXCLUSIVE
+                exclusive=self.EXCLUSIVE,
             )
         else:
             self._channel.queue_declare(
-                queue=queue_name,
-                durable=self.DURABLE,
-                exclusive=self.EXCLUSIVE
+                queue=queue_name, durable=self.DURABLE, exclusive=self.EXCLUSIVE
             )
             self.on_queue_declareok("")
 
@@ -295,18 +301,22 @@ class Subscriber(threading.Thread):
                 "redelivered": basic_deliver.redelivered,
                 "exchange": basic_deliver.exchange,
                 "delivery_tag": basic_deliver.delivery_tag,
-                "counsumer_tag": basic_deliver.consumer_tag
+                "counsumer_tag": basic_deliver.consumer_tag,
             }
             body = json.dumps(json_body, default=dt_to_json)
             for observer in self._observers:
                 observer.handle(json_body)
         except Exception as e:
-            logger.warning("Object is not json, proceding without message meta. Error {}".format(str(e)))
+            logger.warning(
+                "Object is not json, proceding without message meta. Error {}".format(
+                    str(e)
+                )
+            )
         # for observer in self._observers:
-            # observer.handle(body)
+        # observer.handle(body)
         # if not self.no_ack:
         #     self.acknowledge_message(basic_deliver.delivery_tag)
-        self.threads[t_id]['done'] = True
+        self.threads[t_id]["done"] = True
 
     def on_message(self, unused_channel, basic_deliver, properties, body):
         """
@@ -323,21 +333,25 @@ class Subscriber(threading.Thread):
         # clean up threads:
         if self.async_processing:
             for key, value in dict(self.threads).items():
-                if value['done']:
+                if value["done"]:
                     self.threads.pop(key)
-                    value['thread'].join()
+                    value["thread"].join()
             t_id = str(uuid.uuid4())
-            t = threading.Thread(target=self.process_message_async, args=(body, basic_deliver, t_id))
+            t = threading.Thread(
+                target=self.process_message_async, args=(body, basic_deliver, t_id)
+            )
             self.threads[t_id] = {"done": False, "thread": t}
             t.start()
         else:
             self._connection.process_data_events()
             t_id = str(uuid.uuid4())
-            t = threading.Thread(target=self.process_message_async, args=(body, basic_deliver, t_id))
+            t = threading.Thread(
+                target=self.process_message_async, args=(body, basic_deliver, t_id)
+            )
             self.threads[t_id] = {"done": False, "thread": t}
             t.start()
             t.join()
-            self.threads[t_id]['done'] = True
+            self.threads[t_id]["done"] = True
             self.threads.pop(t_id)
 
     def acknowledge_message(self, delivery_tag):
@@ -355,8 +369,7 @@ class Subscriber(threading.Thread):
         if self.async_processing:
             if self._channel:
                 self._channel.basic_cancel(
-                    consumer_tag=self._consumer_tag,
-                    callback=self.on_cancelok
+                    consumer_tag=self._consumer_tag, callback=self.on_cancelok
                 )
         else:
             # if self._channel:
@@ -382,7 +395,7 @@ class Subscriber(threading.Thread):
     def close_threads(self):
         for key, value in dict(self.threads).items():
             logger.info("joining thread")
-            value['thread'].join()
+            value["thread"].join()
             logger.info("joined")
         logger.info("done with threads")
 

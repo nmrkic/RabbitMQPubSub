@@ -8,7 +8,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class SubsHandler():
+class SubsHandler:
     results = {}
 
     def handle(self, body):
@@ -16,19 +16,18 @@ class SubsHandler():
         test = body.get("data", {}).get("test")
         if test:
             if test not in self.results.keys():
-                self.results[body['data']['test']] = []
-            self.results[body['data']['test']].append(body)
+                self.results[body["data"]["test"]] = []
+            self.results[body["data"]["test"]].append(body)
         rabbit_pubsub.Publisher(amqp_url).publish_message(
-            data=body['data'],
-            destination=body['meta']['source'],
+            data=body["data"],
+            destination=body["meta"]["source"],
             source="subscriber",
-            corr_id=body['meta']['correlationId']
+            corr_id=body["meta"]["correlationId"],
         )
-        return body['data']
+        return body["data"]
 
 
 class SubscriberTest(TestCase):
-
     def setUp(self):
         self.test_handler = SubsHandler()
 
@@ -36,14 +35,13 @@ class SubscriberTest(TestCase):
         self.test_handler.results = []
 
     def test_subscriber_async(self):
-
         amqp_url = "amqp://guest:guest@127.0.0.1:5672/guest"
         subscriber = rabbit_pubsub.Subscriber(
             amqp_url=amqp_url,
             exchange="subscriber",
             exchange_type="direct",
             queue="somequeue",
-            async_processing=True
+            async_processing=True,
         )
         subscriber.subscribe(self.test_handler)
         subscriber.start()
@@ -52,12 +50,12 @@ class SubscriberTest(TestCase):
             rabbit_pubsub.Publisher(amqp_url).publish_message(
                 data={"request_number": i, "test": "b"},
                 destination="subscriber",
-                source="source"
+                source="source",
             )
         time.sleep(2)
         subscriber.stop_consuming()
         subscriber.join()
-        for a in self.test_handler.results['b']:
+        for a in self.test_handler.results["b"]:
             logger.info(f"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa {a}")
         self.assertEqual(len(self.test_handler.results["b"]), 10)
         self.test_handler.results = []
@@ -69,7 +67,7 @@ class SubscriberTest(TestCase):
             exchange="some",
             exchange_type="direct",
             queue="somequeue",
-            async_processing=True
+            async_processing=True,
         )
         subscriber.subscribe(self.test_handler)
         subscriber.start()
@@ -80,8 +78,8 @@ class SubscriberTest(TestCase):
             queue="rpcqueue",
         )
         data = {"test_date": dt.datetime.now()}
-        return_data = rpc.call(data, recipient='subscriber')
+        return_data = rpc.call(data, recipient="subscriber")
         subscriber.stop_consuming()
         subscriber.join()
         self.test_handler.results = []
-        self.assertEqual(data, return_data['data'])
+        self.assertEqual(data, return_data["data"])

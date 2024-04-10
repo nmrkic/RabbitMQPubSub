@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   rabbit:
-      image: rabbitmq:3.9.11-management
+      image: rabbitmq:3.13.1-management
       container_name: rabbit-pubsub
       environment:
         - RABBITMQ_DEFAULT_USER=guest

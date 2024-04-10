@@ -12,10 +12,10 @@ class RpcClient(object):
     """Remote Procedure Call"""
 
     EXCHANGE = ""
-    EXCHANGE_TYPE = 'direct'
+    EXCHANGE_TYPE = "direct"
     EXCHANGE_DURABLE = False
-    QUEUE = ''
-    ROUTING_KEY = ''
+    QUEUE = ""
+    ROUTING_KEY = ""
     EXCLUSIVE = True
     DURABLE = False
 
@@ -39,13 +39,17 @@ class RpcClient(object):
         self.channel.exchange_declare(
             exchange=self.EXCHANGE,
             exchange_type=self.EXCHANGE_TYPE,
-            durable=self.EXCHANGE_DURABLE
+            durable=self.EXCHANGE_DURABLE,
         )
-        result = self.channel.queue_declare(queue=self.QUEUE, exclusive=self.EXCLUSIVE, durable=self.DURABLE)
+        result = self.channel.queue_declare(
+            queue=self.QUEUE, exclusive=self.EXCLUSIVE, durable=self.DURABLE
+        )
 
-        self.channel.queue_bind(exchange=self.EXCHANGE,
-                                routing_key=self.ROUTING_KEY,
-                                queue=result.method.queue)
+        self.channel.queue_bind(
+            exchange=self.EXCHANGE,
+            routing_key=self.ROUTING_KEY,
+            queue=result.method.queue,
+        )
 
         self.callback_queue = result.method.queue
 
@@ -67,33 +71,38 @@ class RpcClient(object):
         """
         try:
             json_body = json.loads(body, object_hook=dt_from_json)
-            if self.corr_id == props.correlation_id or self.corr_id == json_body['meta']['correlationId']:
+            if (
+                self.corr_id == props.correlation_id
+                or self.corr_id == json_body["meta"]["correlationId"]
+            ):
                 self.channel.basic_ack(method.delivery_tag)
                 self.response = json_body
         except Exception as e:
             logger.error(f"Error in on_response. Error {str(e)}")
 
-    def call(self, data, recipient, corr_id=None, routing_key="", exchange_type='direct'):
-        """" Main call method - it does the actual RPC request.
+    def call(
+        self, data, recipient, corr_id=None, routing_key="", exchange_type="direct"
+    ):
+        """ " Main call method - it does the actual RPC request.
 
-        In this method we open connection and activate consumer, than add timeout, next we take a unique parametar\
-        correlation_id and save it - the 'on_response' callback function will use this value to catch the\
-        appropriate responce. Next we publish the request message, with two properties: reply_to\
-        and correlation_id. Than wait until the proper response arrives and finally we return \
+        In this method we open connection and activate consumer,
+        than add timeout, next we take a unique parameter
+        correlation_id and save it - the 'on_response' callback
+        function will use this value to catch the
+        appropriate responce. Next we publish the request message,
+        with two properties: reply_to
+        and correlation_id. Than wait until the proper response
+        arrives and finally we return
         the response back to user.
         """
         try:
             self.connect()
-            # self.connection.add_timeout(
-            #     self.timeout,
-            #     self.disconnect
-            # )
             self.response = None
             self.corr_id = corr_id if corr_id else str(uuid.uuid4())
             self.channel.exchange_declare(
                 exchange=recipient,
                 exchange_type=exchange_type,
-                durable=self.EXCHANGE_DURABLE
+                durable=self.EXCHANGE_DURABLE,
             )
             message = {
                 "meta": {
@@ -109,9 +118,8 @@ class RpcClient(object):
                 routing_key=routing_key,
                 body=json.dumps(message, default=dt_to_json),
                 properties=pika.BasicProperties(
-                    reply_to=self.callback_queue,
-                    correlation_id=self.corr_id
-                )
+                    reply_to=self.callback_queue, correlation_id=self.corr_id
+                ),
             )
             start_time = dt.datetime.now() + dt.timedelta(seconds=self.timeout)
             while self.response is None:

@@ -9,13 +9,12 @@ from .utils import dt_to_json
 class Publisher(object):
     """Client API Publisher"""
 
-    EXCHANGE_TYPE = 'direct'
+    EXCHANGE_TYPE = "direct"
     EXCHANGE_DURABLE = False
     PUBLISH_INTERVAL = 5
     EXCHANGE = "publish"
 
     def __init__(self, amqp_url):
-
         self._connection = None
         self._channel = None
         self._url = pika.URLParameters(amqp_url)
@@ -62,21 +61,17 @@ class Publisher(object):
                 "timestamp": dt.datetime.now().isoformat(),
                 "source": self.EXCHANGE,
                 "destination": destination,
-                "correlationId": corr_id
+                "correlationId": corr_id,
             },
             "data": data,
         }
 
         properties = pika.BasicProperties(
-            content_type='application/json',
-            correlation_id=corr_id
+            content_type="application/json", correlation_id=corr_id
         )
 
         self._channel.basic_publish(
-            destination,
-            '',
-            json.dumps(message, default=dt_to_json),
-            properties
+            destination, "", json.dumps(message, default=dt_to_json), properties
         )
 
         self.close_channel()
@@ -92,5 +87,5 @@ class Publisher(object):
         self._channel.exchange_declare(
             exchange=destination,
             exchange_type=self.EXCHANGE_TYPE,
-            durable=self.EXCHANGE_DURABLE
+            durable=self.EXCHANGE_DURABLE,
         )  # declare queue
