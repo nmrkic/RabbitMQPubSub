@@ -1,48 +1,39 @@
 # RabbitMQ Pub-Sub
 
-This project is a simple implementation of a publish-subscribe pattern using RabbitMQ.
+This project provides a simple implementation of the publish-subscribe pattern using RabbitMQ, making it easy to set up communication between different parts of your application.
 
 ## Prerequisites
 
-Before running this project, make sure you have the following prerequisites installed:
+Ensure you have the following installed before proceeding:
 
 - RabbitMQ server
 - Python 3
 
 ## Installation
 
-1. Clone the repository:
+1. Install the required Python dependencies:
 
    ```bash
-   git clone https://github.com/your-username/RabbitMQPubSub.git
-   ```
-
-2. Install the required dependencies:
-
-   ```bash
-   pip install -r requirements.txt
+   pip install .
    ```
 
 ## Usage
 
-1. Start the RabbitMQ server.
+While this project was initially standalone, it is now integrated into a larger project. For practical usage, we recommend utilizing the `mrkutil` library, which includes implemented methods for this library. Check out the [mrkutil GitHub repository](https://github.com/ivke-99/mrkutil/) for more details and examples. However, feel free to adapt this library for your own needs.
 
-2. Run the publisher script to publish messages:
+## Authors
 
-   ```bash
-   python publisher.py
-   ```
+- [@nmrkic](https://github.com/nmrkic)
 
-3. Run the subscriber script to receive messages:
+## Deployment to PyPI
 
-   ```bash
-   python subscriber.py
-   ```
+To deploy this package to PyPI, use the following commands:
+
+```bash
+flit build
+flit publish
+```
 
 ## Contributing
 
-Contributions are welcome! If you find any issues or have suggestions for improvement, please open an issue or submit a pull request.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+Contributions are always welcome! If you have any suggestions or improvements, feel free to submit a pull request or open an issue.
