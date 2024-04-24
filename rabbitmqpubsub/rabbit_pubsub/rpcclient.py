@@ -69,16 +69,13 @@ class RpcClient(object):
         saves the response in self.response and breaks the consuming loop.
 
         """
-        try:
-            json_body = json.loads(body, object_hook=dt_from_json)
-            if (
-                self.corr_id == props.correlation_id
-                or self.corr_id == json_body["meta"]["correlationId"]
-            ):
-                self.channel.basic_ack(method.delivery_tag)
-                self.response = json_body
-        except Exception as e:
-            logger.error(f"Error in on_response. Error {str(e)}")
+        json_body = json.loads(body, object_hook=dt_from_json)
+        if (
+            self.corr_id == props.correlation_id
+            or self.corr_id == json_body["meta"]["correlationId"]
+        ):
+            self.channel.basic_ack(method.delivery_tag)
+            self.response = json_body
 
     def call(
         self, data, recipient, corr_id=None, routing_key="", exchange_type="direct"
@@ -95,38 +92,35 @@ class RpcClient(object):
         arrives and finally we return
         the response back to user.
         """
-        try:
-            self.connect()
-            self.response = None
-            self.corr_id = corr_id if corr_id else str(uuid.uuid4())
-            self.channel.exchange_declare(
-                exchange=recipient,
-                exchange_type=exchange_type,
-                durable=self.EXCHANGE_DURABLE,
-            )
-            message = {
-                "meta": {
-                    "timestamp": dt.datetime.now().isoformat(),
-                    "source": self.EXCHANGE,
-                    "destination": recipient,
-                    "correlationId": self.corr_id,
-                },
-                "data": data,
-            }
-            self.channel.basic_publish(
-                exchange=recipient,
-                routing_key=routing_key,
-                body=json.dumps(message, default=dt_to_json),
-                properties=pika.BasicProperties(
-                    reply_to=self.callback_queue, correlation_id=self.corr_id
-                ),
-            )
-            start_time = dt.datetime.now() + dt.timedelta(seconds=self.timeout)
-            while self.response is None:
-                if start_time <= dt.datetime.now():
-                    break
-                self.connection.process_data_events()
-            self.disconnect()
-        except Exception as e:
-            logger.exception(f"Issue occured RcpClient {str(e)}")
+        self.response = None
+        self.connect()
+        self.corr_id = corr_id if corr_id else str(uuid.uuid4())
+        self.channel.exchange_declare(
+            exchange=recipient,
+            exchange_type=exchange_type,
+            durable=self.EXCHANGE_DURABLE,
+        )
+        message = {
+            "meta": {
+                "timestamp": dt.datetime.now().isoformat(),
+                "source": self.EXCHANGE,
+                "destination": recipient,
+                "correlationId": self.corr_id,
+            },
+            "data": data,
+        }
+        self.channel.basic_publish(
+            exchange=recipient,
+            routing_key=routing_key,
+            body=json.dumps(message, default=dt_to_json),
+            properties=pika.BasicProperties(
+                reply_to=self.callback_queue, correlation_id=self.corr_id
+            ),
+        )
+        start_time = dt.datetime.now() + dt.timedelta(seconds=self.timeout)
+        while self.response is None:
+            if start_time <= dt.datetime.now():
+                raise Exception("Timeout occured waiting for response.")
+            self.connection.process_data_events()
+        self.disconnect()
         return self.response

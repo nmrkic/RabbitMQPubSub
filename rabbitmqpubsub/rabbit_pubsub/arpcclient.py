@@ -113,10 +113,6 @@ class AsyncRpcClient:
         )
         result = True
         if wait_response:
-            try:
-                result = await asyncio.wait_for(future, timeout=self.QUEUE_TIMEOUT)
-            except asyncio.TimeoutError:
-                logger.error("Timeout reached waiting for response.")
-                result = False
+            result = await asyncio.wait_for(future, timeout=self.QUEUE_TIMEOUT)
         await self.disconnect()
         return result
