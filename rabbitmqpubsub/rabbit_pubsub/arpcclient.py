@@ -19,15 +19,14 @@ class AsyncRpcClient:
     ROUTING_KEY = ""
     EXCLUSIVE = True
     DURABLE = False
-
     RABBIT_URL = ""
-    QUEUE_TIMEOUT = 30
 
-    def __init__(self, amqp_url, exchange, queue):
+    def __init__(self, amqp_url, exchange, queue, timeout=30):
         """Setup parameters to open a connection to RabbitMQ."""
         self.RABBIT_URL = amqp_url
         self.EXCHANGE = exchange
         self.QUEUE = queue
+        self.timeout = timeout
         self.futures = {}
         self.loop = asyncio.get_running_loop()
 
@@ -113,6 +112,6 @@ class AsyncRpcClient:
         )
         result = True
         if wait_response:
-            result = await asyncio.wait_for(future, timeout=self.QUEUE_TIMEOUT)
+            result = await asyncio.wait_for(future, timeout=self.timeout)
         await self.disconnect()
         return result

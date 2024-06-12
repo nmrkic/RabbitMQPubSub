@@ -20,16 +20,15 @@ class RpcClient(object):
     DURABLE = False
 
     RABBIT_URL = ""
-    QUEUE_TIMEOUT = 30
 
-    def __init__(self, amqp_url, exchange, queue):
+    def __init__(self, amqp_url, exchange, queue, timeout=30):
         """Setup parameters to open a connection to RabbitMQ."""
         self.RABBIT_URL = amqp_url
         self.EXCHANGE = exchange
         self.QUEUE = queue
         parameters = pika.URLParameters(self.RABBIT_URL)
         self.connection = pika.BlockingConnection(parameters)
-        self.timeout = self.QUEUE_TIMEOUT
+        self.timeout = timeout
         self.response = None
 
     def connect(self):
