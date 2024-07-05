@@ -49,6 +49,7 @@ class Subscriber(threading.Thread):
             self.heartbeat = "?heartbeat={}".format(heartbeat)
         if async_processing:
             self.executor = ThreadPoolExecutor(max_workers=max_threads)
+            self.semaphore = threading.Semaphore(max_threads)
         self.async_processing = async_processing
 
     def subscribe(self, observer):
@@ -314,6 +315,12 @@ class Subscriber(threading.Thread):
                 )
             )
 
+    def process_message_wrapper(self, body, basic_deliver):
+        try:
+            self.process_message_async(body, basic_deliver)
+        finally:
+            self.semaphore.release()  # Release semaphore
+
     def on_message(self, unused_channel, basic_deliver, properties, body):
         """
         Invoked by pika when a message is delivered from RabbitMQ. The
@@ -326,11 +333,15 @@ class Subscriber(threading.Thread):
         # acknowlage that message is received before long processing
         if not self.no_ack:
             self.acknowledge_message(basic_deliver.delivery_tag)
-        # clean up threads:
         if self.async_processing:
-            self.executor.submit(self.process_message_async, body, basic_deliver)
+            self.semaphore.acquire()
+            self.executor.submit(self.process_message_wrapper, body, basic_deliver)
         else:
-            self.process_message_async(body, basic_deliver)
+            t = threading.Thread(
+                target=self.process_message_async, args=(body, basic_deliver)
+            )
+            t.start()
+            t.join()
 
     def acknowledge_message(self, delivery_tag):
         """Acknowledge the message delivery from RabbitMQ by sending a
