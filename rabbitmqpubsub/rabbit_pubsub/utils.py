@@ -14,6 +14,11 @@ def dict_from_json(dct):
                     dct[k] = parse(v.replace("DATE:", ""))
                 except Exception as e:
                     logger.error(f"Issue parsing date {v}. Error: {str(e)}")
+            elif "DATEONLY: " in v:
+                try:
+                    dct[k] = parse(v.replace("DATEONLY:", "")).date()
+                except Exception as e:
+                    logger.error(f"Issue parsing date {v}. Error: {str(e)}")
             elif "BYTES: " in v:
                 try:
                     dct[k] = base64.b64decode(v.replace("BYTES:", ""))
@@ -25,6 +30,8 @@ def dict_from_json(dct):
 def dict_to_json(value):
     if isinstance(value, dt.datetime):
         return f"DATE: {value.isoformat()}"
+    elif isinstance(value, dt.date):
+        return f"DATEONLY: {value.isoformat()}"
     elif isinstance(value, bytes):
         return f"BYTES: {base64.b64encode(value).decode('utf-8')}"
     return value
