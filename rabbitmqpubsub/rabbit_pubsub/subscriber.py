@@ -1,11 +1,11 @@
 import pika
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import asyncio
-import uuid
 from pika.adapters.asyncio_connection import AsyncioConnection
 import logging
 import json
-from .utils import dt_from_json, dt_to_json
+from .utils import dict_from_json, dict_to_json
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,7 @@ class Subscriber(threading.Thread):
         queue=None,
         heartbeat=None,
         async_processing=True,
+        max_threads=10,
     ):
         """
         Create a new instance of the consumer class, passing in the AMQP
@@ -40,13 +41,15 @@ class Subscriber(threading.Thread):
         self._consumer_tag = None
         self._url = amqp_url
         self._observers = []
-        self.threads = {}
         self.EXCHANGE = str(exchange) if exchange else self.EXCHANGE
         self.EXCHANGE_TYPE = str(exchange_type) if exchange_type else self.EXCHANGE_TYPE
         self.QUEUE = str(queue) if queue else self.QUEUE
         self.heartbeat = ""
         if heartbeat:
             self.heartbeat = "?heartbeat={}".format(heartbeat)
+        if async_processing:
+            self.executor = ThreadPoolExecutor(max_workers=max_threads)
+            self.semaphore = threading.Semaphore(max_threads)
         self.async_processing = async_processing
 
     def subscribe(self, observer):
@@ -292,10 +295,9 @@ class Subscriber(threading.Thread):
         if self._channel:
             self._channel.close()
 
-    def process_message_async(self, body, basic_deliver, t_id):
-        # thread_id = threading.get_ident()
+    def process_message_async(self, body, basic_deliver):
         try:
-            json_body = json.loads(body, object_hook=dt_from_json)
+            json_body = json.loads(body, object_hook=dict_from_json)
             json_body["message_meta"] = {
                 "routing_key": basic_deliver.routing_key,
                 "redelivered": basic_deliver.redelivered,
@@ -303,7 +305,7 @@ class Subscriber(threading.Thread):
                 "delivery_tag": basic_deliver.delivery_tag,
                 "counsumer_tag": basic_deliver.consumer_tag,
             }
-            body = json.dumps(json_body, default=dt_to_json)
+            body = json.dumps(json_body, default=dict_to_json)
             for observer in self._observers:
                 observer.handle(json_body)
         except Exception as e:
@@ -312,11 +314,12 @@ class Subscriber(threading.Thread):
                     str(e)
                 )
             )
-        # for observer in self._observers:
-        # observer.handle(body)
-        # if not self.no_ack:
-        #     self.acknowledge_message(basic_deliver.delivery_tag)
-        self.threads[t_id]["done"] = True
+
+    def process_message_wrapper(self, body, basic_deliver):
+        try:
+            self.process_message_async(body, basic_deliver)
+        finally:
+            self.semaphore.release()  # Release semaphore
 
     def on_message(self, unused_channel, basic_deliver, properties, body):
         """
@@ -330,29 +333,15 @@ class Subscriber(threading.Thread):
         # acknowlage that message is received before long processing
         if not self.no_ack:
             self.acknowledge_message(basic_deliver.delivery_tag)
-        # clean up threads:
         if self.async_processing:
-            for key, value in dict(self.threads).items():
-                if value["done"]:
-                    self.threads.pop(key)
-                    value["thread"].join()
-            t_id = str(uuid.uuid4())
-            t = threading.Thread(
-                target=self.process_message_async, args=(body, basic_deliver, t_id)
-            )
-            self.threads[t_id] = {"done": False, "thread": t}
-            t.start()
+            self.semaphore.acquire()
+            self.executor.submit(self.process_message_wrapper, body, basic_deliver)
         else:
-            self._connection.process_data_events()
-            t_id = str(uuid.uuid4())
             t = threading.Thread(
-                target=self.process_message_async, args=(body, basic_deliver, t_id)
+                target=self.process_message_async, args=(body, basic_deliver)
             )
-            self.threads[t_id] = {"done": False, "thread": t}
             t.start()
             t.join()
-            self.threads[t_id]["done"] = True
-            self.threads.pop(t_id)
 
     def acknowledge_message(self, delivery_tag):
         """Acknowledge the message delivery from RabbitMQ by sending a
@@ -392,13 +381,6 @@ class Subscriber(threading.Thread):
 
         self._channel.close()
 
-    def close_threads(self):
-        for key, value in dict(self.threads).items():
-            logger.info("joining thread")
-            value["thread"].join()
-            logger.info("joined")
-        logger.info("done with threads")
-
     def run(self):
         """Run the example consumer by connecting to RabbitMQ and then
         starting the IOLoop to block and allow the SelectConnection to operate.
@@ -410,8 +392,6 @@ class Subscriber(threading.Thread):
         else:
             self._channel.start_consuming()
         logger.info("Exiting...")
-
-        # logger.info("{} {} {}".format(self._connection, self._channel, self._connection.ioloop))
 
     def stop(self):
         """Cleanly shutdown the connection to RabbitMQ by stopping the consumer
@@ -431,7 +411,7 @@ class Subscriber(threading.Thread):
         self._connection.ioloop.stop()
         if self.async_processing:
             logger.info("Connection ioloop {}".format(self._connection.ioloop))
-            self.close_threads()
+            self.executor.shutdown(wait=True)
 
     def close_connection(self):
         """This method closes the connection to RabbitMQ."""

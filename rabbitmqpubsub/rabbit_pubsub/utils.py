@@ -1,21 +1,37 @@
 import logging
 import datetime as dt
 from dateutil.parser import parse
+import base64
 
 logger = logging.getLogger(__name__)
 
 
-def dt_from_json(dct):
+def dict_from_json(dct):
     for k, v in dct.items():
-        if isinstance(v, str) and "DATE: " in v:
-            try:
-                dct[k] = parse(v.replace("DATE:", ""))
-            except Exception as e:
-                logger.error(f"Issue parsing date {v}. Error: {str(e)}")
+        if isinstance(v, str):
+            if "DATE: " in v:
+                try:
+                    dct[k] = parse(v.replace("DATE:", ""))
+                except Exception as e:
+                    logger.error(f"Issue parsing date {v}. Error: {str(e)}")
+            elif "DATEONLY: " in v:
+                try:
+                    dct[k] = parse(v.replace("DATEONLY:", "")).date()
+                except Exception as e:
+                    logger.error(f"Issue parsing date {v}. Error: {str(e)}")
+            elif "BYTES: " in v:
+                try:
+                    dct[k] = base64.b64decode(v.replace("BYTES:", ""))
+                except Exception as e:
+                    logger.error(f"Issue decoding bytes {v}. Error: {str(e)}")
     return dct
 
 
-def dt_to_json(value):
+def dict_to_json(value):
     if isinstance(value, dt.datetime):
         return f"DATE: {value.isoformat()}"
+    elif isinstance(value, dt.date):
+        return f"DATEONLY: {value.isoformat()}"
+    elif isinstance(value, bytes):
+        return f"BYTES: {base64.b64encode(value).decode('utf-8')}"
     return value

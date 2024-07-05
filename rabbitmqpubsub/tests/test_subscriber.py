@@ -83,3 +83,51 @@ class SubscriberTest(TestCase):
         subscriber.join()
         self.test_handler.results = []
         self.assertEqual(data, return_data["data"])
+
+    def test_dateonlyconversion(self):
+        amqp_url = "amqp://guest:guest@127.0.0.1:5672/guest"
+        subscriber = rabbit_pubsub.Subscriber(
+            amqp_url=amqp_url,
+            exchange="some",
+            exchange_type="direct",
+            queue="somequeue",
+            async_processing=True,
+        )
+        subscriber.subscribe(self.test_handler)
+        subscriber.start()
+
+        rpc = rabbit_pubsub.RpcClient(
+            amqp_url=amqp_url,
+            exchange="rpc",
+            queue="rpcqueue",
+        )
+        data = {"test_date": dt.datetime.now().date()}
+        return_data = rpc.call(data, recipient="subscriber")
+        subscriber.stop_consuming()
+        subscriber.join()
+        self.test_handler.results = []
+        self.assertEqual(data, return_data["data"])
+
+    def test_send_bytes(self):
+        amqp_url = "amqp://guest:guest@127.0.0.1:5672/guest"
+        subscriber = rabbit_pubsub.Subscriber(
+            amqp_url=amqp_url,
+            exchange="some",
+            exchange_type="direct",
+            queue="somequeue",
+            async_processing=True,
+        )
+        subscriber.subscribe(self.test_handler)
+        subscriber.start()
+
+        rpc = rabbit_pubsub.RpcClient(
+            amqp_url=amqp_url,
+            exchange="rpc",
+            queue="rpcqueue",
+        )
+        data = {"test_bytes": b"This is a bytes string"}
+        return_data = rpc.call(data, recipient="subscriber")
+        subscriber.stop_consuming()
+        subscriber.join()
+        self.test_handler.results = []
+        self.assertEqual(data, return_data["data"])
