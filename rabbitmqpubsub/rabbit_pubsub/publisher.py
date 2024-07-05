@@ -3,7 +3,7 @@ import json
 import datetime as dt
 import pika
 import uuid
-from .utils import dt_to_json
+from .utils import dict_to_json
 
 
 class Publisher(object):
@@ -71,7 +71,7 @@ class Publisher(object):
         )
 
         self._channel.basic_publish(
-            destination, "", json.dumps(message, default=dt_to_json), properties
+            destination, "", json.dumps(message, default=dict_to_json), properties
         )
 
         self.close_channel()
