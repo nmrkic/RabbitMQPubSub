@@ -2,7 +2,7 @@ import pika
 import datetime as dt
 import json
 import uuid
-from .utils import dt_from_json, dt_to_json
+from .utils import dict_from_json, dict_to_json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ class RpcClient(object):
         saves the response in self.response and breaks the consuming loop.
 
         """
-        json_body = json.loads(body, object_hook=dt_from_json)
+        json_body = json.loads(body, object_hook=dict_from_json)
         if (
             self.corr_id == props.correlation_id
             or self.corr_id == json_body["meta"]["correlationId"]
@@ -111,7 +111,7 @@ class RpcClient(object):
         self.channel.basic_publish(
             exchange=recipient,
             routing_key=routing_key,
-            body=json.dumps(message, default=dt_to_json),
+            body=json.dumps(message, default=dict_to_json),
             properties=pika.BasicProperties(
                 reply_to=self.callback_queue, correlation_id=self.corr_id
             ),

@@ -5,7 +5,7 @@ import uuid
 import json
 import aiormq
 import aiormq.abc
-from .utils import dt_from_json, dt_to_json
+from .utils import dict_from_json, dict_to_json
 
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ class AsyncRpcClient:
         await self.connection.close()
 
     async def on_response(self, message: aiormq.abc.DeliveredMessage):
-        json_body = json.loads(message.body, object_hook=dt_from_json)
+        json_body = json.loads(message.body, object_hook=dict_from_json)
         incoming_corr_id = (
             message.header.properties.correlation_id
             or json_body["meta"]["correlationId"]
@@ -104,7 +104,7 @@ class AsyncRpcClient:
         await self.channel.basic_publish(
             exchange=recipient,
             routing_key=routing_key,
-            body=json.dumps(message, default=dt_to_json).encode(),
+            body=json.dumps(message, default=dict_to_json).encode(),
             properties=aiormq.spec.Basic.Properties(
                 reply_to=self.callback_queue if wait_response else None,
                 correlation_id=self.corr_id,
