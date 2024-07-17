@@ -1,9 +1,8 @@
 # import os
-import json
+import orjson
 import datetime as dt
 import pika
 import uuid
-from .utils import dict_to_json
 
 
 class Publisher(object):
@@ -70,9 +69,7 @@ class Publisher(object):
             content_type="application/json", correlation_id=corr_id
         )
 
-        self._channel.basic_publish(
-            destination, "", json.dumps(message, default=dict_to_json), properties
-        )
+        self._channel.basic_publish(destination, "", orjson.dumps(message), properties)
 
         self.close_channel()
         self.close_connection()

@@ -125,7 +125,7 @@ class SubscriberTest(TestCase):
             exchange="rpc",
             queue="rpcqueue",
         )
-        data = {"test_bytes": b"This is a bytes string"}
+        data = {"test_bytes": {"test_bytes": b"This is a bytes string"}}
         return_data = rpc.call(data, recipient="subscriber")
         subscriber.stop_consuming()
         subscriber.join()

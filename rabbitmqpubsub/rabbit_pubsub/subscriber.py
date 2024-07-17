@@ -4,8 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import asyncio
 from pika.adapters.asyncio_connection import AsyncioConnection
 import logging
-import json
-from .utils import dict_from_json, dict_to_json
+import orjson
 
 logger = logging.getLogger(__name__)
 
@@ -297,7 +296,7 @@ class Subscriber(threading.Thread):
 
     def process_message_async(self, body, basic_deliver):
         try:
-            json_body = json.loads(body, object_hook=dict_from_json)
+            json_body = orjson.loads(body)
             json_body["message_meta"] = {
                 "routing_key": basic_deliver.routing_key,
                 "redelivered": basic_deliver.redelivered,
@@ -305,7 +304,7 @@ class Subscriber(threading.Thread):
                 "delivery_tag": basic_deliver.delivery_tag,
                 "counsumer_tag": basic_deliver.consumer_tag,
             }
-            body = json.dumps(json_body, default=dict_to_json)
+            body = orjson.dumps(json_body)
             for observer in self._observers:
                 observer.handle(json_body)
         except Exception as e:

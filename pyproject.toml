@@ -9,7 +9,7 @@ readme = "README.md"
 license = { file = "LICENSE" }
 classifiers = ['License :: OSI Approved :: Apache Software License']
 dynamic = ["version", "description"]
-dependencies = ["pika>=1.3.0", "dateutils", "aiormq"]
+dependencies = ["pika>=1.3.0", "dateutils", "aiormq", "orjson"]
 
 [tool.flit.module]
 name = "rabbitmqpubsub"
