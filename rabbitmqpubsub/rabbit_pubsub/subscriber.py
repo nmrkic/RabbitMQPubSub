@@ -5,6 +5,7 @@ import asyncio
 from pika.adapters.asyncio_connection import AsyncioConnection
 import logging
 import orjson
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class Subscriber(threading.Thread):
         heartbeat=None,
         async_processing=True,
         max_threads=10,
+        retry_on_start=3
     ):
         """
         Create a new instance of the consumer class, passing in the AMQP
@@ -43,6 +45,8 @@ class Subscriber(threading.Thread):
         self.EXCHANGE = str(exchange) if exchange else self.EXCHANGE
         self.EXCHANGE_TYPE = str(exchange_type) if exchange_type else self.EXCHANGE_TYPE
         self.QUEUE = str(queue) if queue else self.QUEUE
+        self.retry_on_start = retry_on_start
+        self.number_of_retries = 0
         self.heartbeat = ""
         if heartbeat:
             self.heartbeat = "?heartbeat={}".format(heartbeat)
@@ -81,9 +85,6 @@ class Subscriber(threading.Thread):
         else:
             self._connection = pika.BlockingConnection(
                 parameters=pika.URLParameters("{}{}".format(self._url, self.heartbeat)),
-                # on_open_callback=self.on_connection_open,
-                # on_open_error_callback=self.on_open_error_callback,
-                # on_close_callback=self.on_connection_closed
             )
             self.on_connection_open(self._connection)
             return self._connection
@@ -95,13 +96,22 @@ class Subscriber(threading.Thread):
         case we need it, but in this case, we'll just mark it unused.
         """
         # add on conection close callback
+        logger.info("Connection established")
         if self.async_processing:
             self._connection.add_on_close_callback(self.on_connection_closed)
         self.open_channel()
 
     def on_open_error_callback(self, _unused_connection, err):
         logger.error("connection {} error {}".format(_unused_connection, err))
-        # self.reconnect()
+
+        if self.number_of_retries < self.retry_on_start:
+            logger.info(f"Sleeping for seconds = {self.number_of_retries * 5}")
+            time.sleep(self.number_of_retries * 5)
+            self.number_of_retries += 1
+            self.reconnect()
+            return
+        logger.info(f"Retried number of times = {self.number_of_retries}")
+        self.number_of_retries = 0
         if not self._closing:
             self.stop()
 
@@ -125,7 +135,7 @@ class Subscriber(threading.Thread):
         """
 
         # This is the old connection IOLoop instance, stop its ioloop
-        self._connection.ioloop.stop()
+        # self._connection.ioloop.stop()
 
         if not self._closing:
             # Create a new connection
@@ -133,7 +143,8 @@ class Subscriber(threading.Thread):
 
             # There is now a new connection, needs a new ioloop to run
             if self.async_processing:
-                self._connection.ioloop.run_forever()
+                if not self._connection.ioloop.is_running():
+                    self._connection.ioloop.run_forever()
             else:
                 self._connection.ioloop.start()
 
@@ -296,6 +307,7 @@ class Subscriber(threading.Thread):
 
     def process_message_async(self, body, basic_deliver):
         try:
+
             json_body = orjson.loads(body)
             json_body["message_meta"] = {
                 "routing_key": basic_deliver.routing_key,
@@ -404,9 +416,7 @@ class Subscriber(threading.Thread):
         """
         logger.info("Stopping ...")
         self._closing = True
-        logger.info("Self chanel {}".format(self._channel))
         self.stop_consuming()
-        logger.info("Stopped consuming")
         self._connection.ioloop.stop()
         if self.async_processing:
             logger.info("Connection ioloop {}".format(self._connection.ioloop))
