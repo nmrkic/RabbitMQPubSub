@@ -46,7 +46,7 @@ class Subscriber(threading.Thread):
         self.EXCHANGE_TYPE = str(exchange_type) if exchange_type else self.EXCHANGE_TYPE
         self.QUEUE = str(queue) if queue else self.QUEUE
         self.retry_on_start = retry_on_start
-        self.number_of_retrys = 0
+        self.number_of_retries = 0
         self.heartbeat = ""
         if heartbeat:
             self.heartbeat = "?heartbeat={}".format(heartbeat)
@@ -104,14 +104,14 @@ class Subscriber(threading.Thread):
     def on_open_error_callback(self, _unused_connection, err):
         logger.error("connection {} error {}".format(_unused_connection, err))
 
-        if self.number_of_retrys < self.retry_on_start:
-            logger.warning(f"sleeping for seconds = {self.number_of_retrys * 5}")
-            time.sleep(self.number_of_retrys * 5)
-            self.number_of_retrys += 1
+        if self.number_of_retries < self.retry_on_start:
+            logger.info(f"Sleeping for seconds = {self.number_of_retries * 5}")
+            time.sleep(self.number_of_retries * 5)
+            self.number_of_retries += 1
             self.reconnect()
             return
-        logger.warning(f"retried number of times = {self.number_of_retrys}")
-        self.number_of_retrys = 0
+        logger.info(f"Retried number of times = {self.number_of_retries}")
+        self.number_of_retries = 0
         if not self._closing:
             self.stop()
 
