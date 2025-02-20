@@ -1,5 +1,6 @@
 import pika
 import threading
+import ssl
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 from pika.adapters.asyncio_connection import AsyncioConnection
@@ -29,7 +30,7 @@ class Subscriber(threading.Thread):
         heartbeat=None,
         async_processing=True,
         max_threads=10,
-        retry_on_start=3
+        retry_on_start=3,
     ):
         """
         Create a new instance of the consumer class, passing in the AMQP
@@ -74,17 +75,23 @@ class Subscriber(threading.Thread):
         :rtype: pika.SelectConnection
 
         """
+
+        parameters = pika.URLParameters("{}{}".format(self._url, self.heartbeat))
+        if self._url.startswith("ampqs"):
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            ssl_context.set_ciphers("ECDHE+AESGCM:!ECDSA")
+            parameters.ssl_options = pika.SSLOptions(context=ssl_context)
         if self.async_processing:
             asyncio.set_event_loop(asyncio.new_event_loop())
             return AsyncioConnection(
-                parameters=pika.URLParameters("{}{}".format(self._url, self.heartbeat)),
+                parameters=parameters,
                 on_open_callback=self.on_connection_open,
                 on_open_error_callback=self.on_open_error_callback,
                 # on_close_callback=self.on_connection_closed
             )
         else:
             self._connection = pika.BlockingConnection(
-                parameters=pika.URLParameters("{}{}".format(self._url, self.heartbeat)),
+                parameters=parameters,
             )
             self.on_connection_open(self._connection)
             return self._connection
@@ -307,7 +314,6 @@ class Subscriber(threading.Thread):
 
     def process_message_async(self, body, basic_deliver):
         try:
-
             json_body = orjson.loads(body)
             json_body["message_meta"] = {
                 "routing_key": basic_deliver.routing_key,
